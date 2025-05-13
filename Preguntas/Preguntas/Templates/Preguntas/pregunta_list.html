@@ -1,0 +1,314 @@
+{% extends 'Preguntas/home.html' %}
+{% load static %}
+
+{% block title %}Mis Preguntas{% endblock %}
+
+{% block content %}
+<main class="container py-4">
+    <header class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Mis Preguntas <span class="badge bg-secondary">{{ total_preguntas }}</span></h1>
+        <a href="{% url 'pregunta-create' %}" class="btn btn-primary" aria-label="Crear nueva pregunta">
+            <i class="fas fa-plus" aria-hidden="true"></i> Nueva Pregunta
+        </a>
+    </header>
+
+    <!-- Formulario de filtrado -->
+    <section class="card mb-4 shadow-sm border rounded" aria-labelledby="filter-section">
+        <div class="card-header bg-primary text-white d-flex align-items-center">
+            <h2 class="h5 mb-0" id="filter-section">
+                <i class="fas fa-search me-2"></i> Filtros de Búsqueda
+            </h2>
+        </div>
+        <div class="card-body">
+            <form method="get" id="filtroForm" class="row g-3">
+                {% for field in form %}
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label for="{{ field.id_for_label }}" class="form-label fw-bold">{{ field.label }}</label>
+                            {{ field }}
+                            {% if field.help_text %}
+                                <div class="form-text">{{ field.help_text }}</div>
+                            {% endif %}
+                            {% if field.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {% for error in field.errors %}
+                                        {{ error }}
+                                    {% endfor %}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                {% endfor %}
+    
+                <div class="col-12 d-flex justify-content-end">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-filter me-1" aria-hidden="true"></i> Filtrar
+                    </button>
+                    <a href="{% url 'pregunta-list' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-undo me-1" aria-hidden="true"></i> Restablecer
+                    </a>
+                </div>
+            </form>
+        </div>
+    </section>
+
+    <!-- Listado de preguntas -->
+    <section aria-labelledby="preguntas-section">
+        <h2 class="h5 visually-hidden" id="preguntas-section">Lista de preguntas</h2>
+        <form method="post" action="{% url 'descargar-preguntas' %}" id="preguntasForm">
+            {% csrf_token %}
+            <div class="card">
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover table-striped align-middle text-center shadow-sm rounded" aria-describedby="tabla-preguntas-desc">
+                            <caption class="visually-hidden" id="tabla-preguntas-desc">Listado de preguntas con acciones disponibles</caption>
+                            <thead class="table-dark">
+                                <tr>
+                                    <th scope="col">
+                                        <div class="form-check">
+                                            <input type="checkbox" id="selectAll" class="form-check-input" aria-label="Seleccionar todas las preguntas">
+                                            <label class="form-check-label visually-hidden" for="selectAll">Seleccionar todas</label>
+                                        </div>
+                                    </th>
+                                    <th scope="col">Universidad</th>
+                                    <th scope="col">Tema</th>
+                                    <th scope="col">Nivel</th>
+                                    <th scope="col">Contenido</th>
+                                    <th scope="col">Tiempo Restante</th>
+                                    <th scope="col">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for pregunta in preguntas %}
+                                <tr>
+                                    <td>
+                                        <div class="form-check">
+                                            <input type="checkbox" id="pregunta-{{ pregunta.id }}" name="preguntas" value="{{ pregunta.id }}" class="form-check-input pregunta-check" aria-label="Seleccionar pregunta {{ pregunta.id }}">
+                                            <label class="form-check-label visually-hidden" for="pregunta-{{ pregunta.id }}">Seleccionar pregunta {{ pregunta.id }}</label>
+                                        </div>
+                                    </td>
+                                    <td>{{ pregunta.universidad.nombre }}</td>
+                                    <td>{{ pregunta.tema.nombre }}</td>
+                                    <td>
+                                        <span class="badge bg-{% if pregunta.nivel == 'bajo' %}success{% elif pregunta.nivel == 'medio' %}warning text-dark{% elif pregunta.nivel == 'alto' %}danger{% else %}secondary{% endif %}">
+                                            {{ pregunta.nivel }}
+                                        </span>
+                                    </td>
+                                    <td>
+                                        <a href="{{ pregunta.contenido.url }}" class="btn btn-outline-success btn-sm" aria-label="Descargar contenido de la pregunta {{ pregunta.id }}">
+                                            <i class="fas fa-download" aria-hidden="true"></i> Descargar
+                                        </a>
+                                    </td>
+                                    <td>
+                                        {% with tiempo_expiracion=pregunta.fecha_creacion|add:"1 day" %}
+                                        {% if tiempo_expiracion > now %}
+                                            <span class="text-success"><i class="fas fa-clock" aria-hidden="true"></i> {{ tiempo_expiracion|timeuntil }} restantes</span>
+                                        {% else %}
+                                            <span class="text-danger"><i class="fas fa-clock" aria-hidden="true"></i> Expirada</span>
+                                        {% endif %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group" aria-label="Acciones para pregunta {{ pregunta.id }}">
+                                            <button type="button" class="btn btn-info btn-sm" aria-label="Vista previa de la pregunta" onclick="loadPreview('{{ pregunta.id }}')" data-bs-toggle="modal" data-bs-target="#previewModal">
+                                                <i class="fas fa-eye" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Vista previa</span>
+                                            </button>
+                                            <a href="{% url 'pregunta-update' pregunta.id %}" class="btn btn-warning btn-sm" aria-label="Editar pregunta">
+                                                <i class="fas fa-pencil-alt" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Editar</span>
+                                            </a>
+                                            <a href="{% url 'pregunta-delete' pregunta.pk %}" class="btn btn-danger btn-sm" aria-label="Eliminar pregunta">
+                                                <i class="fas fa-trash" aria-hidden="true"></i>
+                                                <span class="visually-hidden">Eliminar</span>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center text-muted py-5">
+                                        <i class="fas fa-inbox fa-2x mb-3" aria-hidden="true"></i>
+                                        <p>No hay preguntas registradas.</p>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="mt-3">
+                        <button type="submit" class="btn btn-success" id="btnDescargar" disabled aria-label="Descargar preguntas seleccionadas">
+                            <i class="fas fa-download" aria-hidden="true"></i> Descargar Seleccionadas
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </form>
+    </section>
+
+    <!-- Modal de vista previa -->
+    <div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3 class="modal-title fs-5" id="previewModalLabel">Vista Previa de la Pregunta</h3>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body" id="modalBody">
+                    <div class="d-flex justify-content-center">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="visually-hidden">Cargando...</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</main>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Aplicar clase form-control a todos los selects en el formulario de filtro
+    document.querySelectorAll('#filtroForm select').forEach(select => {
+        select.classList.add('form-control');
+        // Añadimos atributos de accesibilidad
+        if (!select.hasAttribute('aria-label')) {
+            select.setAttribute('aria-label', select.previousElementSibling?.textContent || 'Filtro');
+        }
+    });
+    
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.pregunta-check');
+    const btnDescargar = document.getElementById('btnDescargar');
+    const form = document.getElementById("filtroForm");
+
+    // Gestión de la selección de todos los checkboxes
+    selectAll?.addEventListener('change', () => {
+        checkboxes.forEach(checkbox => checkbox.checked = selectAll.checked);
+        updateDownloadButton();
+    });
+    
+    // Actualiza el estado del botón de descarga cuando cambia algún checkbox
+    checkboxes.forEach(checkbox => checkbox.addEventListener('change', updateDownloadButton));
+    
+    function updateDownloadButton() {
+        const haySeleccionados = document.querySelectorAll('.pregunta-check:checked').length > 0;
+        btnDescargar.disabled = !haySeleccionados;
+        // Actualizamos ARIA para mejorar accesibilidad
+        btnDescargar.setAttribute('aria-disabled', !haySeleccionados);
+    }
+    
+    // Función para cargar opciones dinámicas en los selects
+    async function loadOptions(url, targetSelect, defaultText) {
+        try {
+            targetSelect.setAttribute('aria-busy', 'true');
+            const response = await fetch(url);
+            
+            if (!response.ok) throw new Error('Error en la respuesta del servidor');
+            
+            const data = await response.json();
+            targetSelect.innerHTML = `<option value="">${defaultText}</option>`;
+            data.forEach(item => targetSelect.add(new Option(item.nombre, item.id)));
+        } catch (error) {
+            console.error('Error cargando opciones:', error);
+            targetSelect.innerHTML = `<option value="">Error al cargar datos</option>`;
+        } finally {
+            targetSelect.setAttribute('aria-busy', 'false');
+        }
+    }
+    
+    // Autoenvío del formulario al cambiar filtros
+    document.querySelectorAll("#filtroForm select").forEach(select => {
+        select.addEventListener("change", function() {
+            // Añadimos un indicador visual de carga
+            const loadingIndicator = document.createElement('span');
+            loadingIndicator.classList.add('spinner-border', 'spinner-border-sm', 'ms-2');
+            loadingIndicator.setAttribute('role', 'status');
+            loadingIndicator.innerHTML = '<span class="visually-hidden">Cargando...</span>';
+            
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) {
+                submitBtn.appendChild(loadingIndicator);
+                submitBtn.disabled = true;
+            }
+            
+            form.submit();
+        });
+    });
+    
+    // Carga dinámica de cursos al cambiar la universidad
+    const universidadSelect = document.getElementById('id_universidad');
+    const cursoSelect = document.getElementById('id_curso');
+    const temaSelect = document.getElementById('id_tema');
+    
+    universidadSelect?.addEventListener('change', function() {
+        if (cursoSelect) {
+            loadOptions(`/preguntas/load-cursos/?universidad_id=${this.value}`, cursoSelect, 'Seleccione un curso');
+        }
+        if (temaSelect) {
+            temaSelect.innerHTML = '<option value="">Seleccione un tema</option>';
+        }
+    });
+    
+    // Carga dinámica de temas al cambiar el curso
+    cursoSelect?.addEventListener('change', function() {
+        if (temaSelect) {
+            loadOptions(`/preguntas/load-temas/?curso_id=${this.value}`, temaSelect, 'Seleccione un tema');
+        }
+    });
+});
+
+/**
+ * Carga la vista previa de una pregunta en el modal
+ * @param {string} preguntaId - ID de la pregunta a previsualizar
+ */
+function loadPreview(preguntaId) {
+    if (!preguntaId) {
+        console.error("ID de la pregunta no válido.");
+        return;
+    }
+
+    const modalBody = document.getElementById('modalBody');
+    
+    // Mostrar indicador de carga
+    modalBody.innerHTML = `
+        <div class="d-flex justify-content-center py-5">
+            <div class="spinner-border text-primary" role="status">
+                <span class="visually-hidden">Cargando vista previa...</span>
+            </div>
+        </div>
+    `;
+
+    fetch(`/preguntas/vista-previa/${preguntaId}/`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Error HTTP: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            modalBody.innerHTML = data.docx_html;
+            // Renderizar ecuaciones matemáticas si existe MathJax
+            if (typeof MathJax !== 'undefined') {
+                MathJax.typesetPromise();
+            }
+        })
+        .catch(error => {
+            modalBody.innerHTML = `
+                <div class="alert alert-danger" role="alert">
+                    <i class="fas fa-exclamation-triangle me-2"></i>
+                    Error al cargar la vista previa.
+                </div>
+                <p class="text-muted small">Detalles técnicos: ${error.message}</p>
+            `;
+            console.error("Error en la carga de la vista previa:", error);
+        });
+}
+</script>
+{% endblock %}
+
+{% endblock %}

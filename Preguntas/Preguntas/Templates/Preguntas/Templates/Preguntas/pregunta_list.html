@@ -1,0 +1,191 @@
+{% extends 'Preguntas/home.html' %}
+{% load static %}
+
+{% block title %}Mis Preguntas{% endblock %}
+
+{% block content %}
+<div class="container py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h2>Mis Preguntas <span class="badge bg-secondary">{{ total_preguntas }}</span></h2>
+        <a href="{% url 'pregunta-create' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nueva Pregunta
+        </a>
+    </div>
+
+    <!-- Formulario de filtrado -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" id="filtroForm" class="row g-3 mb-4">
+                <div class="row g-3">
+                    {% for field in form %}
+                    <div class="col-md-4">
+                        <div class="form-group">
+                            {{ field.label_tag }}
+                            {{ field }}
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                <div class="d-flex justify-content-end mt-3">
+                    <button type="submit" class="btn btn-primary me-2">
+                        <i class="fas fa-filter"></i> Filtrar
+                    </button>
+                    <a href="{% url 'pregunta-list' %}" class="btn btn-secondary">
+                        <i class="fas fa-undo"></i> Restablecer
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Listado de preguntas -->
+    <form method="post" action="{% url 'descargar-preguntas' %}" id="preguntasForm">
+        {% csrf_token %}
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle ">
+                        <thead class="table-light">
+                            <tr>
+                                <th><input type="checkbox" id="selectAll" class="form-check-input"></th>
+                                <th>Universidad</th>
+                                <th>Tema</th>
+                                <th>Nivel</th>
+                                <th>Contenido</th>
+                                <th>Tiempo Restante</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pregunta in preguntas %}
+                            <tr>
+                                <td><input type="checkbox" name="preguntas" value="{{ pregunta.id }}" class="form-check-input pregunta-check"></td>
+                                <td>{{ pregunta.universidad.nombre }}</td>
+                                <td>{{ pregunta.tema.nombre }}</td>
+                                <td>
+                                    <span class="badge bg-{% if pregunta.nivel == 'bajo' %}success{% elif pregunta.nivel == 'medio' %}warning text-dark{% elif pregunta.nivel == 'alto' %}danger{% else %}secondary{% endif %}">
+                                        {{ pregunta.nivel }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{{ pregunta.contenido.url }}" class="btn btn-outline-success btn-sm">
+                                        <i class="fas fa-download"></i> Descargar
+                                    </a>
+                                </td>
+                                <td>
+                                    {% with tiempo_expiracion=pregunta.fecha_creacion|add:"1 day" %}
+                                    {% if tiempo_expiracion > now %}
+                                        <span class="text-success"><i class="fas fa-clock"></i> {{ tiempo_expiracion|timeuntil }} restantes</span>
+                                    {% else %}
+                                        <span class="text-danger"><i class="fas fa-clock"></i> Expirada</span>
+                                    {% endif %}
+                                    {% endwith %}
+                                </td>
+                                <td>
+                                    <div class="btn-group">
+                                        <a href="#" class="btn btn-info btn-sm" title="Vista Previa" onclick="loadPreview('{{ pregunta.id }}')" data-bs-toggle="modal" data-bs-target="#previewModal">
+                                         <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a href="{% url 'pregunta-update' pregunta.id %}" class="btn btn-warning btn-sm" title="Editar">
+                                            <i class="fas fa-pencil-alt"></i>
+                                        </a>
+                                        <a href="{% url 'pregunta-delete' pregunta.pk %}" class="btn btn-danger btn-sm">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="7" class="text-center text-muted">
+                                    <i class="fas fa-inbox fa-2x mb-3"></i>
+                                    <p>No hay preguntas registradas.</p>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success" id="btnDescargar" disabled>
+                        <i class="fas fa-download"></i> Descargar Seleccionadas
+                    </button>
+                </div>
+            </div>
+        </div>
+    </form>
+</div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    document.querySelectorAll('#filtroForm select').forEach(select => select.classList.add('form-control'));
+    
+    const selectAll = document.getElementById('selectAll');
+    const checkboxes = document.querySelectorAll('.pregunta-check');
+    const btnDescargar = document.getElementById('btnDescargar');
+    const form = document.getElementById("filtroForm");
+
+    selectAll?.addEventListener('change', () => {
+        checkboxes.forEach(checkbox => checkbox.checked = selectAll.checked);
+        updateDownloadButton();
+    });
+    
+    checkboxes.forEach(checkbox => checkbox.addEventListener('change', updateDownloadButton));
+    
+    function updateDownloadButton() {
+        btnDescargar.disabled = document.querySelectorAll('.pregunta-check:checked').length === 0;
+    }
+    
+    async function loadOptions(url, targetSelect, defaultText) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Error en la respuesta del servidor');
+            
+            const data = await response.json();
+            targetSelect.innerHTML = `<option value="">${defaultText}</option>`;
+            data.forEach(item => targetSelect.add(new Option(item.nombre, item.id)));
+        } catch (error) {
+            console.error('Error cargando opciones:', error);
+            targetSelect.innerHTML = `<option value="">Error al cargar datos</option>`;
+        }
+    }
+    
+    // Detecta cambios en los filtros y envía el formulario automáticamente
+    document.querySelectorAll("#filtroForm select").forEach(select => {
+         select.addEventListener("change", function() {
+              form.submit();
+          });
+    });
+    
+    document.getElementById('id_universidad')?.addEventListener('change', function() {
+        loadOptions(`/preguntas/load-cursos/?universidad_id=${this.value}`, document.getElementById('id_curso'), 'Seleccione un curso');
+        document.getElementById('id_tema').innerHTML = '<option value="">Seleccione un tema</option>';
+    });
+    
+    document.getElementById('id_curso')?.addEventListener('change', function() {
+        loadOptions(`/preguntas/load-temas/?curso_id=${this.value}`, document.getElementById('id_tema'), 'Seleccione un tema');
+    });
+});
+
+function loadPreview(preguntaId) {
+    if (!preguntaId) {
+        console.error("ID de la pregunta no válido.");
+        return;
+    }
+
+    fetch(`/preguntas/vista-previa/${preguntaId}/`)
+        .then(response => response.json())
+        .then(data => {
+            document.getElementById('modalBody').innerHTML = data.docx_html;
+            MathJax.typesetPromise(); // Renderizar ecuaciones matemáticas
+        })
+        .catch(error => {
+            document.getElementById('modalBody').innerHTML = '<p>Error al cargar la vista previa.</p>';
+            console.error("Error en la carga de la vista previa:", error);
+        });
+}
+</script>
+{% endblock %}
+
+{% endblock %}

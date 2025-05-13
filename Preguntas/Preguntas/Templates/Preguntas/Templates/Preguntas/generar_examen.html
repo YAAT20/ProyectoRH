@@ -1,0 +1,329 @@
+{% extends 'Preguntas/home.html' %}
+
+{% block title %}Generar Examen{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card shadow-sm mb-4">
+        <div class="card-header bg-primary text-white">
+            <h2 class="mb-0">Generar Examen</h2>
+        </div>
+        <div class="card-body">
+            {% if error %}
+                <div class="alert alert-danger">{{ error }}</div>
+            {% endif %}
+
+            <!-- Filtros -->
+            <form method="get" id="filtroForm" class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label for="universidad" class="form-label">Universidad</label>
+                    <select name="universidad" id="universidad" class="form-select" onchange="this.form.submit();">
+                        <option value="">Todas</option>
+                        {% for uni in universidades %}
+                            <option value="{{ uni.id }}" {% if universidad_filter|default:"" == uni.id|stringformat:"s" %}selected{% endif %}>{{ uni.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="curso" class="form-label">Curso</label>
+                    <select name="curso" id="curso" class="form-select"onchange="this.form.submit();">
+                        <option value="">Todos</option>
+                        {% for curso in cursos %}
+                            <option value="{{ curso.id }}" {% if curso_filter|default:"" == curso.id|stringformat:"s" %}selected{% endif %}>{{ curso.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label for="tema" class="form-label">Tema</label>
+                    <select name="tema" id="tema" class="form-select"onchange="this.form.submit();">
+                        <option value="">Todos</option>
+                        {% for tema in temas %}
+                            <option value="{{ tema.id }}" {% if tema_filter|default:"" == tema.id|stringformat:"s" %}selected{% endif %}>{{ tema.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12 text-end">
+                    <button type="button" class="btn btn-info" data-bs-toggle="modal" data-bs-target="#carritoModal">Ver Carrito</button>
+                    <button type="submit" class="btn btn-primary">Aplicar Filtros</button>
+                </div>
+            </form>
+
+            <!-- Listado de Preguntas -->
+            <form method="post" id="examenForm">
+                {% csrf_token %}
+                <div class="table-responsive">
+                    <table class="table table-striped table-bordered table-hover align-middle">
+                        <thead class="table-light">
+                            <tr>
+                                <th class="text-center" style="width: 50px;">
+                                    <input type="checkbox" id="selectAll" class="form-check-input">
+                                </th>
+                                <th>Nombre de la Pregunta</th>
+                                <th>Tema</th>
+                                <th>Universidad</th>
+                                <th>Curso</th>
+                                <th class="text-center">Fecha de Creación</th>
+                                <th class="text-center" style="width: 100px;">Vista Previa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for pregunta in preguntas %}
+                                <tr>
+                                    <td class="text-center">
+                                        <input type="checkbox" name="preguntas" value="{{ pregunta.id }}" class="pregunta-checkbox form-check-input">
+                                    </td>
+                                    <td>{{ pregunta.nombre }}</td>
+                                    <td>{{ pregunta.tema.nombre }}</td>
+                                    <td>{{ pregunta.universidad.nombre }}</td>
+                                    <td>{{ pregunta.curso.nombre }}</td>
+                                    <td class="text-center">{{ pregunta.fecha_creacion|date:"Y-m-d" }}</td>
+                                    <td class="text-center">
+                                        <a href="#" class="btn btn-info btn-sm" title="Vista Previa" onclick="loadPreview('{{ pregunta.id }}')" data-bs-toggle="modal" data-bs-target="#previewModal">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                    </td>
+                                </tr>
+                            {% empty %}
+                                <tr>
+                                    <td colspan="7" class="text-center">No se encontraron preguntas.</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mt-3">
+                    <button type="submit" name="add_to_cart" class="btn btn-secondary">Añadir al Carrito</button>
+                    <button type="submit" name="download" class="btn btn-success">Descargar Examen</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de Vista Previa -->
+<div class="modal fade" id="previewModal" tabindex="-1" aria-labelledby="previewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+       <div class="modal-content">
+           <div class="modal-header">
+               <h5 class="modal-title" id="previewModalLabel">Vista Previa de la Pregunta</h5>
+               <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+           </div>
+           <div class="modal-body" id="modalBody">
+               <p class="text-center">Cargando contenido...</p>
+           </div>
+           <div class="modal-footer">
+               <button id="btnAgregarCarrito" class="btn btn-success">Añadir al Carrito</button>
+               <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+           </div>
+       </div>
+    </div>
+</div>
+
+<!-- Modal del Carrito -->
+<div class="modal fade" id="carritoModal" tabindex="-1" aria-labelledby="carritoModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="carritoModalLabel">Carrito de Preguntas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <div class="modal-body">
+                <ul id="listaCarrito" class="list-group">
+                    {% for pregunta in carrito %}
+                        <li id="pregunta-{{ pregunta.id }}" class="list-group-item d-flex justify-content-between align-items-center">
+                            {{ pregunta.nombre }}
+                            <button type="button" class="btn btn-danger btn-sm" onclick="eliminarPregunta('{{ pregunta.id }}')">Eliminar</button>
+                            <a href="#" class="btn btn-info btn-sm" title="Vista Previa" onclick="loadPreview('{{ pregunta.id }}')" data-bs-toggle="modal" data-bs-target="#previewModal">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                        </li>
+                    {% empty %}
+                        <li class="list-group-item">El carrito está vacío.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-danger" id="vaciarCarrito">Vaciar Carrito</button>
+                <form method="post" id="formCarritoDownload">
+                    {% csrf_token %}
+                    <input type="hidden" name="download" value="true">
+                    <button type="submit" class="btn btn-success">Descargar Examen</button>
+                </form>                
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- JavaScript -->
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const selectAllCheckbox = document.getElementById("selectAll");
+        const checkboxes = document.querySelectorAll(".pregunta-checkbox");
+        const btnAgregarCarrito = document.getElementById("btnAgregarCarrito");
+        const examenForm = document.getElementById("examenForm");
+        let preguntaIdActual = null; // Variable para almacenar el ID de la pregunta actual
+
+        // Función para actualizar el estado de los checkboxes
+        function toggleCheckboxes(checked) {
+            checkboxes.forEach(checkbox => checkbox.checked = checked);
+        }
+
+        // Evento para el checkbox "Seleccionar Todo"
+        selectAllCheckbox.addEventListener("change", () => {
+            toggleCheckboxes(selectAllCheckbox.checked);
+        });
+
+        // Evento para el formulario al enviar
+        examenForm.addEventListener("submit", (event) => {
+            const selectedQuestions = Array.from(checkboxes)
+                .filter(checkbox => checkbox.checked)
+                .map(checkbox => checkbox.value);
+
+            // Si no hay preguntas seleccionadas, mostrar alerta
+            if (event.submitter.name === "add_to_cart" && selectedQuestions.length === 0) {
+                event.preventDefault(); // Prevenir el envío del formulario
+                alert("Por favor, selecciona al menos una pregunta para añadir al carrito.");
+            } else {
+                // Crear inputs ocultos para cada pregunta seleccionada
+                selectedQuestions.forEach(questionId => {
+                    const preguntaInput = document.createElement("input");
+                    preguntaInput.type = "hidden";
+                    preguntaInput.name = "preguntas"; // Asegúrate de que el nombre sea el mismo
+                    preguntaInput.value = questionId;
+                    examenForm.appendChild(preguntaInput);
+                });
+            }
+        });
+
+        // Cargar vista previa y guardar el ID de la pregunta
+        window.loadPreview = function(preguntaId) {
+            preguntaIdActual = preguntaId;  // Guardar ID actual
+            fetch(`/preguntas/vista_previa/${preguntaId}/`)
+                .then(response => response.json())
+                .then(data => {
+                    document.getElementById("modalBody").innerHTML = `
+                        <h4>${data.pregunta_nombre}</h4>
+                        ${data.docx_text || "<p>No hay contenido disponible.</p>"}
+                    `;
+                })
+                .catch(error => {
+                    console.error("Error al cargar la vista previa:", error);
+                    document.getElementById("modalBody").innerHTML = "<p class='text-danger'>Error al cargar el contenido.</p>";
+                });
+        }
+
+        // Añadir pregunta al carrito desde la vista previa
+        btnAgregarCarrito.addEventListener("click", () => {
+            if (!preguntaIdActual) return;
+
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = window.location.href;
+
+            const csrfInput = document.createElement("input");
+            csrfInput.type = "hidden";
+            csrfInput.name = "csrfmiddlewaretoken";
+            csrfInput.value = "{{ csrf_token }}";
+
+            const preguntaInput = document.createElement("input");
+            preguntaInput.type = "hidden";
+            preguntaInput.name = "pregunta_id"; // ID de la pregunta desde la vista previa
+            preguntaInput.value = preguntaIdActual;
+
+            const addToCartInput = document.createElement("input");
+            addToCartInput.type = "hidden";
+            addToCartInput.name = "add_preview"; // Indica que se está añadiendo desde la vista previa
+
+            form.appendChild(csrfInput);
+            form.appendChild(preguntaInput);
+            form.appendChild(addToCartInput);
+
+            document.body.appendChild(form);
+            form.submit();
+        });
+
+        // Eliminar pregunta del carrito
+        window.eliminarPregunta = function(preguntaId) {
+            const formData = new FormData();
+            formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+            formData.append('preguntas', preguntaId);
+            formData.append('remove_from_cart', true);
+            
+            fetch(window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    const elementoCarrito = document.getElementById(`pregunta-${preguntaId}`);
+                    if (elementoCarrito) {
+                        elementoCarrito.remove();
+                    }
+                } else {
+                    console.error("Error al eliminar la pregunta:", data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        };
+        // Vaciar el carrito
+        document.getElementById("vaciarCarrito").addEventListener("click", () => {
+            if (confirm("¿Estás seguro de que deseas vaciar el carrito?")) {
+                const formData = new FormData();
+                formData.append('csrfmiddlewaretoken', '{{ csrf_token }}');
+                formData.append('vaciar_carrito', true); // Indica que se está vaciando el carrito
+
+                fetch(window.location.href, {
+                    method: 'POST',
+                    body: formData,
+                    headers: {
+                        'X-Requested-With': 'XMLHttpRequest'
+                    }
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Limpiar la lista del carrito en la interfaz
+                        document.getElementById("listaCarrito").innerHTML = '<li class="list-group-item">El carrito está vacío.</li>';
+                        console.log("Carrito vaciado.");
+                    } else {
+                        console.error("Error al vaciar el carrito:", data.error);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                });
+            }
+        });
+        
+        document.addEventListener("DOMContentLoaded", function() {
+            const formCarritoDownload = document.getElementById("formCarritoDownload");
+
+            formCarritoDownload.addEventListener("submit", (event) => {
+                // Limpiar inputs anteriores
+                document.querySelectorAll("#formCarritoDownload input[name='preguntas']").forEach(e => e.remove());
+
+                // Obtener las preguntas del carrito
+                document.querySelectorAll("#listaCarrito li").forEach(item => {
+                    const preguntaId = item.id.replace("pregunta-", "");
+                    if (preguntaId) {
+                        const input = document.createElement("input");
+                        input.type = "hidden";
+                        input.name = "preguntas";
+                        input.value = preguntaId;
+                        formCarritoDownload.appendChild(input);
+                    }
+                });
+            });
+        });
+            
+    });
+</script>
+
+{% endblock %}

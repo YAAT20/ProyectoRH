@@ -1,0 +1,86 @@
+{% extends 'Preguntas/home.html' %}
+{% load static %} 
+
+{% block title %}
+    {% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Tema
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-6 offset-md-3">
+        <div class="card">
+            <div class="card-header">
+                <h3 class="card-title mb-0">
+                    {% if form.instance.pk %}
+                        Editar Tema
+                    {% else %}
+                        Nuevo Tema
+                    {% endif %}
+                </h3>
+            </div>
+            <div class="card-body">
+                <form method="post" id="temaForm" >
+                    {% csrf_token %}
+                    <div class="mb-3">
+                        <label for="{{ form.curso.id_for_label }}" class="form-label">Curso</label>
+                        {{ form.curso }}
+                        {% if form.curso.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.curso.errors.0 }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="mb-3">
+                        <label for="{{ form.nombre.id_for_label }}" class="form-label">Nombre del Tema</label>
+                        {{ form.nombre }}
+                        {% if form.nombre.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.nombre.errors.0 }}
+                        </div>
+                        {% endif %}
+                    </div>
+                    <div class="text-end">
+                        <a href="{% url 'tema-list' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Guardar
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+<script>
+    document.getElementById('temaForm').addEventListener('submit', function(event) {
+        event.preventDefault(); // Previene la redirección
+    
+        const form = event.target;
+        const formData = new FormData(form);
+    
+        fetch(window.location.href, {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': formData.get('csrfmiddlewaretoken'),
+            },
+            body: formData
+        })
+        .then(response => {
+            if (response.ok) {
+                // Opcional: muestra un mensaje de éxito o limpia el formulario
+                alert('Tema guardado correctamente');
+                form.reset(); // Limpia los campos si quieres
+            } else {
+                // Muestra mensaje de error si algo sale mal
+                alert('Error al guardar el tema');
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error inesperado');
+        });
+    });
+    </script>
+{% endblock %}
