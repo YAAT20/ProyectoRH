@@ -248,8 +248,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const temaSelect = document.getElementById('id_tema');
 
     // URLs generadas por Django
-    const urlLoadCursos = "{% url 'load_cursos' %}";
-    const urlLoadTemas = "{% url 'load_temas' %}";
+    const urlLoadCursos = "{% url 'load_cursos_creacion' %}";
+    const urlLoadTemas = "{% url 'load_temas_creacion' %}";
 
     function cargarCursos(universidadId) {
         if (!universidadId) {

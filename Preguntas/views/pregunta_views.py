@@ -47,23 +47,49 @@ from django.core.paginator import Paginator
 @exclude_supervisor
 @login_required
 def pregunta_list(request):
-    # Perfil del usuario
-    user_profile = get_object_or_404(UserProfile, user=request.user)
-
-    # Base queryset según permisos
     if request.user.is_superuser:
-        qs = Pregunta.objects.filter(usuario=user_profile)
+        qs_base = Pregunta.objects.all()
     else:
-        limite = timezone.now() - timedelta(days=1)
-        qs = Pregunta.objects.filter(usuario=user_profile, fecha_creacion__gte=limite)
+        user_profile = get_object_or_404(UserProfile, user=request.user)
+        qs_base = Pregunta.objects.filter(usuario=user_profile)
 
-    # Leer filtros del GET
+    tiempo_filtro = request.GET.get('tiempo_filtro')
+    
+    if tiempo_filtro:
+        try:
+            minutos = int(tiempo_filtro)
+            limite_tiempo = timezone.now() - timedelta(minutes=minutos)
+            qs_base = qs_base.filter(fecha_creacion__gte=limite_tiempo)
+        except ValueError:
+            pass 
+    elif not request.user.is_superuser:
+        limite_default = timezone.now() - timedelta(days=1)
+        qs_base = qs_base.filter(fecha_creacion__gte=limite_default)
+
+    universidades_qs = Universidad.objects.filter(pregunta__in=qs_base).distinct()
+
     universidad_id = request.GET.get('universidad')
+    cursos_para_uni = []
+    if universidad_id:
+        cursos_para_uni = Curso.objects.filter(
+            pregunta__in=qs_base, 
+            pregunta__universidad_id=universidad_id
+        ).distinct()
+
     curso_id = request.GET.get('curso')
+    temas_para_curso = []
+    if curso_id:
+        temas_qs = Tema.objects.filter(curso_id=curso_id, pregunta__in=qs_base)
+        if universidad_id:
+            temas_qs = temas_qs.filter(pregunta__universidad_id=universidad_id)
+        
+        temas_para_curso = temas_qs.distinct()
+        
     tema_id = request.GET.get('tema')
     nivel = request.GET.get('nivel')
 
-    # Aplicar filtros en cascada
+    qs = qs_base
+
     if universidad_id:
         qs = qs.filter(universidad_id=universidad_id)
     if curso_id:
@@ -73,27 +99,23 @@ def pregunta_list(request):
     if nivel:
         qs = qs.filter(nivel=nivel)
 
-    # Paginación - 30 preguntas por página
-    paginator = Paginator(qs, 20)
+    qs = qs.order_by('-fecha_creacion')
+
+    paginator = Paginator(qs, 100)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
-    # Formulario para el nivel (opcional)
-    form = FiltroPreguntaForm(request.GET or None)
-
-    # Contexto para la plantilla
     context = {
-        'total_preguntas': Pregunta.objects.filter(usuario=user_profile).count(),
-        'page_obj': page_obj,  # Cambiamos 'preguntas' por 'page_obj'
-        'form': form,
-        'universidades': Universidad.objects.all(),
-        'cursos_para_uni': Curso.objects.filter(universidades__id=universidad_id) if universidad_id else [],
-        'temas_para_curso': Tema.objects.filter(curso_id=curso_id) if curso_id else [],
+        'page_obj': page_obj,
+        'universidades': universidades_qs,
+        'cursos_para_uni': cursos_para_uni,
+        'temas_para_curso': temas_para_curso,
         'universidad_filter': universidad_id,
         'curso_filter': curso_id,
         'tema_filter': tema_id,
         'nivel_filter': nivel,
-        'now': timezone.now(),
+        'tiempo_filtro': tiempo_filtro,
+        'total_preguntas': qs.count(), 
     }
     return render(request, 'Preguntas/pregunta_list.html', context)
 
@@ -111,7 +133,7 @@ def pregunta_list_supervisor(request):
 
     qs = qs.order_by('-fecha_creacion')
 
-    paginator = Paginator(qs, 20)
+    paginator = Paginator(qs, 100)
     page = request.GET.get('page')
     qs_paginated = paginator.get_page(page)
 
@@ -153,7 +175,6 @@ def pregunta_create(request):
 
             messages.success(request, 'Pregunta creada exitosamente.')
 
-            # ✅ SIMULAR nuevo formulario
             data = request.POST.copy()
             data['nombre'] = ''
             nuevo_formulario = PreguntaForm(data, is_update=False)
@@ -457,8 +478,6 @@ def combinar_documentos(preguntas):
 logger = logging.getLogger(__name__)
 
 def sanitize_filename(filename):
-    """Sanitiza el nombre del archivo para evitar problemas"""
-    # Remover caracteres problemáticos y limitar longitud
     filename = slugify(filename, allow_unicode=False)
     if len(filename) > 100:
         filename = filename[:100]
@@ -467,7 +486,6 @@ def sanitize_filename(filename):
 @xframe_options_exempt
 @login_required
 def vista_previa(request, pk):
-    """Vista previa con reconversión solo si el PDF no existe"""
     try:
         pregunta = Pregunta.objects.get(pk=pk)
     except Pregunta.DoesNotExist:

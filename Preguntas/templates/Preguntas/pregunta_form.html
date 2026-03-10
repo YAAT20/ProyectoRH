@@ -300,8 +300,8 @@ document.addEventListener('DOMContentLoaded', function () {
     const cursoSelect = document.getElementById('id_curso');
     const temaSelect = document.getElementById('id_tema');
 
-    const urlLoadCursos = "{% url 'load_cursos' %}";
-    const urlLoadTemas = "{% url 'load_temas' %}";
+    const urlLoadCursos = "{% url 'load_cursos_creacion' %}";
+    const urlLoadTemas = "{% url 'load_temas_creacion' %}";
 
     function resetear(select, placeholder) {
         select.innerHTML = '';

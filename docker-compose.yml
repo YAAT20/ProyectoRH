@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  app_banco:
+    build: .
+    container_name: app_banco
+    restart: always
+    volumes:
+      - .:/app
+      - ./media:/app/media
+      - ./media:/media
+
+    environment:
+      - DJANGO_SETTINGS_MODULE=PregRh.settings
+      - DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1
+    networks:
+      - app-network
+    ports:
+      - "8003:8000"
+
+networks:
+  app-network:
+    external: true

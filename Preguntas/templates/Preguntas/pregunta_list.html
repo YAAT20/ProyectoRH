@@ -5,7 +5,6 @@
 
 {% block content %}
 <main class="container py-4">
-    <!-- Sección de Filtros y Listado de Preguntas -->
     <section class="card mb-4 shadow-sm border rounded" aria-labelledby="filter-section">
         <header class="card-header d-flex justify-content-between align-items-center text-white py-3">
             <div class="d-flex align-items-center mb-2 mb-md-0">
@@ -36,112 +35,82 @@
             </div>
         </header>
 
-        <!-- Filtros - Versión mejorada -->
-        <div class="card mb-4 shadow-sm border-0">
-            <div class="card-header bg-primary bg-gradient text-white">
-                <div class="d-flex justify-content-between align-items-center">
-                    <h2 class="h5 mb-0" id="filter-section">
-                        <i class="fas fa-filter me-2"></i>Filtros de Búsqueda
-                    </h2>
-                    <button class="btn btn-sm btn-outline-light" type="button" data-bs-toggle="collapse" 
-                            data-bs-target="#filtersCollapse" aria-expanded="true" aria-controls="filtersCollapse">
-                        <i class="fas fa-chevron-up"></i>
-                    </button>
+        <div class="card-body bg-light-subtle">
+            <form method="get" id="filtroForm" class="row g-3 align-items-end">
+                
+                <div class="col-md-4 col-lg-3">
+                    <label for="universidad" class="form-label fw-semibold small mb-1">
+                        <i class="fas fa-university me-1 text-primary"></i> Universidad
+                    </label>
+                    <select name="universidad" id="universidad" class="form-select form-select-sm shadow-sm">
+                        <option value="">Todas las universidades</option>
+                        {% for uni in universidades %}
+                        <option value="{{ uni.id }}" {% if universidad_filter == uni.id|stringformat:"s" %}selected{% endif %}>
+                            {{ uni.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
-            </div>
-            
-            <div class="collapse show" id="filtersCollapse">
-                <div class="card-body bg-light-subtle">
-                    <form method="get" id="filtroForm" class="row g-3 align-items-end">
-                        <!-- Universidad -->
-                        <div class="col-md-4 col-lg-3">
-                            <label for="universidad" class="form-label fw-semibold small mb-1">
-                                <i class="fas fa-university me-1 text-primary"></i> Universidad
-                            </label>
-                            <select name="universidad" id="universidad" class="form-select form-select-sm shadow-sm">
-                                <option value="">Todas las universidades</option>
-                                {% for uni in universidades %}
-                                <option value="{{ uni.id }}" {% if universidad_filter == uni.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ uni.nombre }}
-                                </option>
-                                {% endfor %}
-                            </select>
-                        </div>
 
-                        <!-- Curso -->
-                        <div class="col-md-4 col-lg-3">
-                            <label for="curso" id="cursoLabel" class="form-label fw-semibold small mb-1">
-                                <i class="fas fa-book me-1 text-primary"></i> Curso
-                            </label>
-                            <select name="curso" id="curso" class="form-select form-select-sm shadow-sm" 
-                                    {% if not universidad_filter %}disabled{% endif %}
-                                    aria-labelledby="cursoLabel {% if not universidad_filter %}- disabled{% endif %}">
-                                <option value="">
-                                    {% if universidad_filter %}Todos los cursos{% else %}Seleccione universidad{% endif %}
-                                </option>
-                                {% if universidad_filter %}
-                                    {% for curso in cursos_para_uni %}
-                                    <option value="{{ curso.id }}" {% if curso_filter == curso.id|stringformat:"s" %}selected{% endif %}>
-                                        {{ curso.nombre }}
-                                    </option>
-                                    {% endfor %}
-                                {% endif %}
-                            </select>
-                        </div>
-
-                        <!-- Tema -->
-                        <div class="col-md-4 col-lg-3">
-                            <label for="tema" id="temaLabel" class="form-label fw-semibold small mb-1">
-                                <i class="fas fa-question-circle me-1 text-primary"></i> Tema
-                            </label>
-                            <select name="tema" id="tema" class="form-select form-select-sm shadow-sm" 
-                                    {% if not curso_filter %}disabled{% endif %}
-                                    aria-labelledby="temaLabel {% if not curso_filter %}- disabled{% endif %}">
-                                <option value="">
-                                    {% if curso_filter %}Todos los temas{% else %}Seleccione curso{% endif %}
-                                </option>
-                                {% if curso_filter %}
-                                {% for tema in temas_para_curso %}
-                                <option value="{{ tema.id }}" {% if tema_filter == tema.id|stringformat:"s" %}selected{% endif %}>
-                                    {{ tema.nombre }}
-                                </option>
-                                {% endfor %}
-                                {% endif %}
-                            </select>
-                        </div>
-
-                        <!-- Filtro por tiempo -->
-                        <div class="col-md-4 col-lg-3">
-                            <label for="tiempo_filtro" class="form-label fw-semibold small mb-1">
-                                <i class="fas fa-clock me-1 text-primary"></i> Mostrar últimas
-                            </label>
-                            <select name="tiempo_filtro" id="tiempo_filtro" class="form-select form-select-sm shadow-sm">
-                                <option value="">Todas las preguntas</option>
-                                <option value="15" {% if tiempo_filtro == "15" %}selected{% endif %}>Últimos 15 min</option>
-                                <option value="30" {% if tiempo_filtro == "30" %}selected{% endif %}>Últimos 30 min</option>
-                                <option value="60" {% if tiempo_filtro == "60" %}selected{% endif %}>Última hora</option>
-                                <option value="120" {% if tiempo_filtro == "120" %}selected{% endif %}>Últimas 2 horas</option>
-                                <option value="360" {% if tiempo_filtro == "360" %}selected{% endif %}>Últimas 6 horas</option>
-                                <option value="720" {% if tiempo_filtro == "720" %}selected{% endif %}>Últimas 12 horas</option>
-                                <option value="1440" {% if tiempo_filtro == "1440" %}selected{% endif %}>Últimas 24 horas</option>
-                            </select>
-                        </div>
-
-                        <!-- Botones de acción -->
-                        <div class="col-12 mt-2">
-                            <div class="d-flex justify-content-end gap-2">
-                                <a href="{% url 'pregunta-list' %}" class="btn btn-sm btn-outline-secondary" 
-                                aria-label="Restablecer filtros">
-                                    <i class="fas fa-undo me-1"></i> Restablecer
-                                </a>
-                                <button type="submit" class="btn btn-sm btn-primary" aria-label="Aplicar filtros">
-                                    <i class="fas fa-filter me-1"></i> Aplicar
-                                </button>
-                            </div>
-                        </div>
-                    </form>
+                <div class="col-md-4 col-lg-3">
+                    <label for="curso" id="cursoLabel" class="form-label fw-semibold small mb-1">
+                        <i class="fas fa-book me-1 text-primary"></i> Curso
+                    </label>
+                    <select name="curso" id="curso" class="form-select form-select-sm shadow-sm">
+                        <option value="">
+                            {% if universidad_filter %}Todos los cursos{% else %}Seleccione universidad{% endif %}
+                        </option>
+                        {% for curso in cursos_para_uni %}
+                        <option value="{{ curso.id }}" {% if curso_filter == curso.id|stringformat:"s" %}selected{% endif %}>
+                            {{ curso.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
                 </div>
-            </div>
+
+                <div class="col-md-4 col-lg-3">
+                    <label for="tema" id="temaLabel" class="form-label fw-semibold small mb-1">
+                        <i class="fas fa-question-circle me-1 text-primary"></i> Tema
+                    </label>
+                    <select name="tema" id="tema" class="form-select form-select-sm shadow-sm">
+                        <option value="">
+                            {% if curso_filter %}Todos los temas{% else %}Seleccione curso{% endif %}
+                        </option>
+                        {% for tema in temas_para_curso %}
+                        <option value="{{ tema.id }}" {% if tema_filter == tema.id|stringformat:"s" %}selected{% endif %}>
+                            {{ tema.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-4 col-lg-3">
+                    <label for="tiempo_filtro" class="form-label fw-semibold small mb-1">
+                        <i class="fas fa-clock me-1 text-primary"></i> Mostrar últimas
+                    </label>
+                    <select name="tiempo_filtro" id="tiempo_filtro" class="form-select form-select-sm shadow-sm">
+                        <option value="">Todas (Según perfil)</option>
+                        <option value="15" {% if tiempo_filtro == "15" %}selected{% endif %}>Últimos 15 min</option>
+                        <option value="30" {% if tiempo_filtro == "30" %}selected{% endif %}>Últimos 30 min</option>    
+                        <option value="60" {% if tiempo_filtro == "60" %}selected{% endif %}>Última hora</option>
+                        <option value="120" {% if tiempo_filtro == "120" %}selected{% endif %}>Últimas 2 horas</option>
+                        <option value="360" {% if tiempo_filtro == "360" %}selected{% endif %}>Últimas 6 horas</option>
+                        <option value="720" {% if tiempo_filtro == "720" %}selected{% endif %}>Últimas 12 horas</option>
+                        <option value="1440" {% if tiempo_filtro == "1440" %}selected{% endif %}>Últimas 24 horas</option>
+                    </select>
+                </div>
+
+                <div class="col-12 mt-2">
+                    <div class="d-flex justify-content-end gap-2">
+                        <a href="{% url 'pregunta-list' %}" class="btn btn-sm btn-outline-secondary">
+                            <i class="fas fa-undo me-1"></i> Restablecer
+                        </a>
+                        <button type="submit" class="btn btn-sm btn-primary">
+                            <i class="fas fa-filter me-1"></i> Aplicar
+                        </button>
+                    </div>
+                </div>
+            </form>
         </div>
 
         <!-- Tabla de Preguntas -->
@@ -446,153 +415,170 @@
 
 {% block extra_js %}
 <script>
+    // 1. Función para vista previa de PDF (Fuera del DOMContentLoaded)
     function loadPdfPreview(button) {
         const url = button.getAttribute('data-url');
         const iframe = document.getElementById('previewFrame');
-        iframe.src = url;
+        if (iframe) iframe.src = url;
     }
 
-    document.addEventListener('DOMContentLoaded', function () {
-        // Elementos de filtros
-        const universidadSelect = document.getElementById('universidad');
+    document.addEventListener('DOMContentLoaded', function() {
+        // --- VARIABLES GLOBALES ---
+        const uniSelect = document.getElementById('universidad');
         const cursoSelect = document.getElementById('curso');
         const temaSelect = document.getElementById('tema');
-
-        // URLs AJAX desde Django
-        const urlLoadCursos = "{% url 'load_cursos' %}";
-        const urlLoadTemas = "{% url 'load_temas' %}";
-
-        // Filtros seleccionados desde el backend
-        const universidadFilter = "{{ universidad_filter|default_if_none:'' }}";
-        const cursoFilter = "{{ curso_filter|default_if_none:'' }}";
-        const temaFilter = "{{ tema_filter|default_if_none:'' }}";
-
-        // Función para cargar cursos
-        function loadCursos(universidadId) {
-            cursoSelect.innerHTML = '<option value="">Cargando cursos...</option>';
-            cursoSelect.disabled = true;
-
-            temaSelect.innerHTML = '<option value="">Seleccione Curso</option>';
-            temaSelect.disabled = true;
-
-            if (!universidadId) {
-                cursoSelect.innerHTML = '<option value="">Seleccione Universidad</option>';
-                return;
-            }
-
-            fetch(`${urlLoadCursos}?universidad_id=${universidadId}`)
-                .then(response => response.json())
-                .then(data => {
-                    cursoSelect.innerHTML = '<option value="">Todos los cursos</option>';
-                    data.forEach(curso => {
-                        const option = document.createElement('option');
-                        option.value = curso.id;
-                        option.textContent = curso.nombre;
-                        cursoSelect.appendChild(option);
-                    });
-                    cursoSelect.disabled = false;
-
-                    if (cursoFilter) {
-                        cursoSelect.value = cursoFilter;
-                        cursoSelect.dispatchEvent(new Event('change'));  // carga temas
-                    }
-                })
-                .catch(error => {
-                    console.error('Error al cargar cursos:', error);
-                    cursoSelect.innerHTML = '<option value="">Error al cargar cursos</option>';
-                });
-        }
-
-        // Función para cargar temas
-        function loadTemas(cursoId) {
-            temaSelect.innerHTML = '<option value="">Cargando temas...</option>';
-            temaSelect.disabled = true;
-
-            if (!cursoId) {
-                temaSelect.innerHTML = '<option value="">Seleccione Curso</option>';
-                return;
-            }
-
-            fetch(`${urlLoadTemas}?curso_id=${cursoId}`)
-                .then(response => response.json())
-                .then(data => {
-                    temaSelect.innerHTML = '<option value="">Todos los temas</option>';
-                    data.forEach(tema => {
-                        const option = document.createElement('option');
-                        option.value = tema.id;
-                        option.textContent = tema.nombre;
-                        temaSelect.appendChild(option);
-                    });
-                    temaSelect.disabled = false;
-
-                    if (temaFilter) {
-                        temaSelect.value = temaFilter;
-                    }
-                })
-                .catch(error => {
-                    console.error('Error al cargar temas:', error);
-                    temaSelect.innerHTML = '<option value="">Error al cargar temas</option>';
-                });
-        }
-
-        // Eventos
-        universidadSelect.addEventListener('change', function () {
-            loadCursos(this.value);
-        });
-
-        cursoSelect.addEventListener('change', function () {
-            loadTemas(this.value);
-        });
-
-        // Inicialización de filtros si hay valores preseleccionados
-        if (universidadFilter) {
-            universidadSelect.value = universidadFilter;
-            loadCursos(universidadFilter);
-        }
-
-        // Selección múltiple de preguntas
+        
+        // Variables para checkboxes
         const selectAll = document.getElementById('selectAll');
         const checkboxes = document.querySelectorAll('.pregunta-check');
         const btnDescargar = document.getElementById('btnDescargar');
         const btnEliminar = document.getElementById('btnEliminar');
         const selectedCount = document.getElementById('selectedCount');
         const deleteCount = document.getElementById('deleteCount');
+        const formPreguntas = document.getElementById('preguntasForm');
 
-        function updateSelectedCount() {
-            const selected = document.querySelectorAll('.pregunta-check:checked').length;
-            selectedCount.textContent = selected;
-            deleteCount.textContent = selected;
-            btnDescargar.disabled = selected === 0;
-            btnEliminar.disabled = selected === 0;
+        // URLs de Django
+        const urlCursos = "{% url 'load_cursos' %}"; 
+        const urlTemas = "{% url 'load_temas' %}";
+
+        // ==========================================
+        // PARTE 1: LÓGICA DE FILTROS (CASCADA)
+        // ==========================================
+
+        // A. Cambio de Universidad
+        if (uniSelect) {
+            uniSelect.addEventListener('change', function() {
+                const uniId = this.value;
+                
+                // Reiniciar selectores hijos
+                cursoSelect.innerHTML = '<option value="">Cargando...</option>';
+                cursoSelect.disabled = true;
+                temaSelect.innerHTML = '<option value="">---------</option>';
+                temaSelect.disabled = true;
+
+                if (uniId) {
+                    fetch(`${urlCursos}?universidad_id=${uniId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            cursoSelect.innerHTML = '<option value="">Seleccione Curso</option>';
+                            data.forEach(item => {
+                                const option = document.createElement('option');
+                                option.value = item.id;
+                                option.textContent = item.nombre;
+                                cursoSelect.appendChild(option);
+                            });
+                            cursoSelect.disabled = false;
+                        })
+                        .catch(err => {
+                            console.error('Error cargando cursos:', err);
+                            cursoSelect.innerHTML = '<option value="">Error</option>';
+                        });
+                } else {
+                    cursoSelect.innerHTML = '<option value="">---------</option>';
+                }
+            });
         }
 
+        // B. Cambio de Curso
+        if (cursoSelect) {
+            cursoSelect.addEventListener('change', function() {
+                const cursoId = this.value;
+                const uniId = uniSelect.value; 
+
+                temaSelect.innerHTML = '<option value="">Cargando...</option>';
+                temaSelect.disabled = true;
+
+                if (cursoId && uniId) {
+                    fetch(`${urlTemas}?curso_id=${cursoId}&universidad_id=${uniId}`)
+                        .then(response => response.json())
+                        .then(data => {
+                            temaSelect.innerHTML = '<option value="">Seleccione Tema</option>';
+                            data.forEach(item => {
+                                const option = document.createElement('option');
+                                option.value = item.id;
+                                option.textContent = item.nombre;
+                                temaSelect.appendChild(option);
+                            });
+                            temaSelect.disabled = false;
+                        })
+                        .catch(err => {
+                            console.error('Error cargando temas:', err);
+                            temaSelect.innerHTML = '<option value="">Error</option>';
+                        });
+                } else {
+                    temaSelect.innerHTML = '<option value="">---------</option>';
+                }
+            });
+        }
+
+        // ==========================================
+        // PARTE 2: LÓGICA DE SELECCIÓN Y DESCARGA
+        // ==========================================
+
+        function updateSelectedCount() {
+            // Contar cuántos checkboxes individuales están marcados
+            const checkedBoxes = document.querySelectorAll('.pregunta-check:checked');
+            const count = checkedBoxes.length;
+
+            // Actualizar textos y botones
+            if (selectedCount) selectedCount.textContent = count;
+            if (deleteCount) deleteCount.textContent = count;
+            
+            // Habilitar/Deshabilitar botones
+            if (btnDescargar) btnDescargar.disabled = count === 0;
+            if (btnEliminar) btnEliminar.disabled = count === 0;
+        }
+
+        // Evento: Seleccionar Todo (Checkbox Maestro)
         if (selectAll) {
-            selectAll.addEventListener('change', function () {
-                checkboxes.forEach(checkbox => {
-                    checkbox.checked = selectAll.checked;
+            selectAll.addEventListener('change', function() {
+                checkboxes.forEach(cb => {
+                    cb.checked = selectAll.checked;
                 });
                 updateSelectedCount();
             });
         }
 
-        checkboxes.forEach(checkbox => {
-            checkbox.addEventListener('change', function () {
+        // Evento: Checkboxes Individuales
+        checkboxes.forEach(cb => {
+            cb.addEventListener('change', function() {
+                // Si desmarcas uno, se desmarca el "Seleccionar Todo"
                 if (!this.checked && selectAll) {
                     selectAll.checked = false;
+                }
+                // Si marcas todos manualmente, se marca el "Seleccionar Todo"
+                if (this.checked && selectAll) {
+                    const allChecked = document.querySelectorAll('.pregunta-check:checked').length === checkboxes.length;
+                    selectAll.checked = allChecked;
                 }
                 updateSelectedCount();
             });
         });
 
-        const confirmDelete = document.getElementById('confirmDelete');
-        if (confirmDelete) {
-            confirmDelete.addEventListener('click', function () {
-                document.getElementById('preguntasForm').action = "{% url 'eliminar-preguntas' %}";
-                document.getElementById('preguntasForm').submit();
+        // ==========================================
+        // PARTE 3: CONFIRMACIÓN DE ELIMINAR
+        // ==========================================
+        
+        const confirmDeleteBtn = document.getElementById('confirmDelete');
+        if (confirmDeleteBtn && formPreguntas) {
+            confirmDeleteBtn.addEventListener('click', function() {
+                // Cambiamos la acción del formulario para apuntar a la URL de eliminar
+                formPreguntas.action = "{% url 'eliminar-preguntas' %}";
+                formPreguntas.submit();
             });
         }
 
-        // Temporizador en vivo
+        // ==========================================
+        // PARTE 4: EXTRAS (Tooltips y Timers)
+        // ==========================================
+        
+        // Inicializar Tooltips de Bootstrap
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
+        });
+
+        // Temporizadores
         function updateCountdowns() {
             document.querySelectorAll('.countdown-timer').forEach(timer => {
                 const expirationDate = new Date(timer.dataset.expiration);
@@ -600,95 +586,24 @@
                 const diff = expirationDate - now;
 
                 if (diff <= 0) {
-                    timer.innerHTML = '<i class="fas fa-clock me-1" aria-hidden="true"></i> Expirada';
-                    timer.classList.remove('text-success');
-                    timer.classList.add('text-danger');
-                    timer.title = 'Expirada: ' + timer.dataset.expiration;
+                    timer.innerHTML = '<i class="fas fa-clock me-1"></i> Expirada';
+                    timer.className = 'text-danger'; 
                     return;
                 }
 
                 const hours = Math.floor(diff / (1000 * 60 * 60));
                 const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-                let timeStr = '';
-                if (hours > 0) {
-                    timeStr += hours + ' H ';
-                    if (minutes > 0) {
-                        timeStr += minutes + ' min';
-                    }
-                } else {
-                    timeStr += minutes + ' min';
-                }
-
-                timer.querySelector('.time-remaining').textContent = timeStr.trim();
+                let timeStr = (hours > 0 ? hours + ' H ' : '') + minutes + ' min';
+                
+                const timeSpan = timer.querySelector('.time-remaining');
+                if(timeSpan) timeSpan.textContent = timeStr;
             });
         }
-
-        setInterval(updateCountdowns, 60000);
+        
+        // Ejecutar temporizador
         updateCountdowns();
-
-        // Tooltips Bootstrap
-        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-        tooltipTriggerList.map(function (tooltipTriggerEl) {
-            return new bootstrap.Tooltip(tooltipTriggerEl);
-        });
+        setInterval(updateCountdowns, 60000);
     });
-// Función para configurar los listeners de un formulario
-function setupFormListener(form) {
-    const boton = form.querySelector('.guardar-cambios-btn');
-    if (!boton) {
-        console.error('No se encontró el botón en el formulario:', form);
-        return;
-    }
-
-    // Remover cualquier listener previo para evitar duplicados
-    boton.removeEventListener('click', handleGuardarCambios);
-    
-    // Agregar el nuevo listener
-    boton.addEventListener('click', handleGuardarCambios);
-
-    function handleGuardarCambios() {
-        const formData = new FormData();
-        formData.append('id', form.dataset.id);
-        formData.append('tiene_solucion', form.querySelector('.tiene-solucion-checkbox').checked);
-        formData.append('alternativa', form.querySelector('.alternativa-select').value);
-        formData.append('csrfmiddlewaretoken', document.querySelector('[name=csrfmiddlewaretoken]').value);
-
-        // Mostrar loading
-        const originalHTML = boton.innerHTML;
-        boton.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
-        boton.disabled = true;
-
-        fetch("{% url 'actualizar-rapido-pregunta' %}", {
-            method: "POST",
-            body: formData
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                showToast('Cambios guardados correctamente');
-            } else {
-                alert('Error: ' + (data.error || 'Error desconocido'));
-            }
-        })
-        .catch(error => {
-            console.error('Error:', error);
-            alert('Error de conexión');
-        })
-        .finally(() => {
-            boton.innerHTML = originalHTML;
-            boton.disabled = false;
-        });
-    }
-}
-
-function showToast(message) {
-    const toast = new bootstrap.Toast(document.getElementById('liveToast'));
-    document.getElementById('toastMessage').textContent = message;
-    toast.show();
-}
-
 </script>
 {% endblock %}
-
 {% endblock %}
