@@ -6,3 +6,9 @@ __pycache__/
 media/
 staticfiles/
 .env
+db.sqlite3
+docker-compose.yml
+Dockerfile
+banco_backup.sql
+pdf.conversion.log
+query
