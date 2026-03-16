@@ -1,0 +1,114 @@
+{% extends 'Preguntas/home.html' %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h4 class="mb-0">Crear Nueva Pregunta Online</h4>
+        </div>
+        <div class="card-body">
+            <form method="POST" id="preguntaForm">
+                {% csrf_token %}
+                
+                <div class="mb-3">
+                    <label class="form-label">Universidad</label>
+                    <select name="universidad" id="id_universidad" class="form-select" required>
+                        <option value="">---------</option>
+                        {% for uni in universidades %}
+                            <option value="{{ uni.id }}">{{ uni.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Curso</label>
+                    <select name="curso" id="id_curso" class="form-select" required disabled>
+                        <option value="">Seleccione una universidad primero</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Tema</label>
+                    <select name="tema" id="id_tema" class="form-select" required disabled>
+                        <option value="">Seleccione un curso primero</option>
+                    </select>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nivel (1-3)</label>
+                        <input type="number" name="nivel" class="form-control" value="1" min="1" max="3">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Respuesta Correcta</label>
+                        <select name="respuesta" class="form-select">
+                            <option value="A">A</option>
+                            <option value="B">B</option>
+                            <option value="C">C</option>
+                            <option value="D">D</option>
+                            <option value="E">E</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-success btn-lg">
+                        <i class="bi bi-file-earmark-word"></i> Crear y Abrir Editor
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    const selectUni = document.getElementById('id_universidad');
+    const selectCurso = document.getElementById('id_curso');
+    const selectTema = document.getElementById('id_tema');
+
+    // 1. Cuando cambia la Universidad
+    selectUni.addEventListener('change', (e) => {
+        const uniId = e.target.value;
+        
+        // Reset de selects hijos
+        selectCurso.innerHTML = '<option value="">Cargando cursos...</option>';
+        selectTema.innerHTML = '<option value="">---------</option>';
+        selectCurso.disabled = true;
+        selectTema.disabled = true;
+
+        if (!uniId) return;
+
+        // Llamada a tu vista load_cursos_creacion
+        fetch(`/load-cursos-creacion/?universidad_id=${uniId}`)
+            .then(response => response.json())
+            .then(data => {
+                selectCurso.innerHTML = '<option value="">---------</option>';
+                data.forEach(item => {
+                    selectCurso.innerHTML += `<option value="${item.id}">${item.nombre}</option>`;
+                });
+                selectCurso.disabled = false;
+            });
+    });
+
+    // 2. Cuando cambia el Curso
+    selectCurso.addEventListener('change', (e) => {
+        const cursoId = e.target.value;
+        
+        selectTema.innerHTML = '<option value="">Cargando temas...</option>';
+        selectTema.disabled = true;
+
+        if (!cursoId) return;
+
+        // Llamada a tu vista load_temas_creacion
+        fetch(`/load-temas-creacion/?curso_id=${cursoId}`)
+            .then(response => response.json())
+            .then(data => {
+                selectTema.innerHTML = '<option value="">---------</option>';
+                data.forEach(item => {
+                    selectTema.innerHTML += `<option value="${item.id}">${item.nombre}</option>`;
+                });
+                selectTema.disabled = false;
+            });
+    });
+</script>
+{% endblock %}

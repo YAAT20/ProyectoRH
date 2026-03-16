@@ -55,66 +55,61 @@ def update_user_status(sender, instance, **kwargs):
         User.objects.filter(id=instance.user.id).update(is_active=instance.is_active)
 
 class Pregunta(models.Model):
-    RESPUESTA_CHOICES = [
-        ('A', 'A'),
-        ('B', 'B'),
-        ('C', 'C'),
-        ('D', 'D'),
-        ('E', 'E'),
-    ]
+    RESPUESTA_CHOICES = [('A','A'),('B','B'),('C','C'),('D','D'),('E','E')]
 
-    universidad = models.ForeignKey(Universidad, on_delete=models.SET_NULL, null=True)
-    curso = models.ForeignKey(Curso, on_delete=models.SET_NULL, null=True)
-    tema = models.ForeignKey(Tema, on_delete=models.SET_NULL, null=True)
-
-    nivel = models.PositiveSmallIntegerField(default=1, help_text="Nivel de dificultad (por ejemplo: 1, 2, 3...)")
-    respuesta = models.CharField(
-        max_length=1,
-        choices=RESPUESTA_CHOICES,
-        default='A',
-        help_text="Respuesta correcta (A, B, C, D o E)"
-    )
-
+    universidad = models.ForeignKey('Universidad', on_delete=models.SET_NULL, null=True)
+    curso = models.ForeignKey('Curso', on_delete=models.SET_NULL, null=True)
+    tema = models.ForeignKey('Tema', on_delete=models.SET_NULL, null=True)
+    nivel = models.PositiveSmallIntegerField(default=1)
+    respuesta = models.CharField(max_length=1, choices=RESPUESTA_CHOICES, default='A')
     nombre = models.CharField(max_length=300, blank=True)
-    contenido = models.FileField(
-        upload_to='preguntas/',
-        validators=[FileExtensionValidator(allowed_extensions=['doc', 'docx'])],
-        help_text="Suba un archivo .doc o .docx con la pregunta"
-    )
+    
+    # Archivo de la pregunta (solo enunciado)
+    contenido = models.FileField(upload_to='preguntas/', validators=[FileExtensionValidator(['docx'])])
+    
+    # Archivo de la solución (opcional, para imágenes de la resolución)
+    solucion_archivo = models.FileField(upload_to='soluciones/', null=True, blank=True)
+    tiene_solucion = models.BooleanField(default=False)
 
-    usuario = models.ForeignKey(UserProfile, on_delete=models.CASCADE, null=True)
+    usuario = models.ForeignKey('UserProfile', on_delete=models.CASCADE, null=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
 
     def save(self, *args, **kwargs):
-        # Generar nombre automático si no se ha asignado
+        """
+        Lógica para autogenerar el nombre técnico de la pregunta 
+        basado en sus relaciones si no se ha definido uno.
+        """
         if not self.nombre and self.universidad and self.curso and self.tema:
-            count = Pregunta.objects.filter(
+            query = Pregunta.objects.filter(
                 universidad=self.universidad,
                 curso=self.curso,
                 tema=self.tema,
                 nivel=self.nivel
-            ).count() + 1
-
+            )
+            # Si estamos editando, excluimos la pregunta actual del conteo
+            if self.pk:
+                query = query.exclude(pk=self.pk)
+            
+            count = query.count() + 1
             self.nombre = f"{self.universidad.id}{self.curso.id}{self.tema.id}{self.nivel}{count}"
 
         if not self.id:
             self.fecha_creacion = timezone.now()
 
         super().save(*args, **kwargs)
-        
-    tiene_solucion = models.BooleanField(
-        default=False,
-        help_text="Indica si la pregunta tiene solución"
-    )
+
     @property
     def usada(self):
+        """Verifica si la pregunta ya ha sido incluida en algún examen"""
         return ExamenPregunta.objects.filter(pregunta=self).exists()
+
     @property
     def fecha_expiracion(self):
+        """Cálculo de expiración para control administrativo"""
         return self.fecha_creacion + timedelta(days=1)
 
     def __str__(self):
-        return self.nombre
+        return self.nombre if self.nombre else f"Pregunta ID: {self.id}"
 
 class Examen(models.Model):
     nombre = models.CharField(max_length=200)

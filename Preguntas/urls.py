@@ -27,7 +27,6 @@ urlpatterns = [
     path('pregunta/<int:pk>/editar/', views.pregunta_update, name='pregunta-update'),
     path('descargar-preguntas/', views.descargar_preguntas, name='descargar-preguntas'),
     path('pregunta/<int:pk>/vista-previa/', views.vista_previa, name='vista-previa'),
-    path('pregunta/<int:pk>/vista-previa/', views.vista_previa, name='vista-previa'),
     path('preguntas/todas/', views.todas_las_preguntas, name='todas_las_preguntas'),
     path('preguntas/masivo/', views.masivo_pregunta_create, name='masivo_pregunta_create'),
     path('preguntas/eliminar-multiples/', views.eliminar_preguntas, name='eliminar-preguntas'),
@@ -54,4 +53,10 @@ urlpatterns = [
     path('ajax/load-cursos-creacion/', views.load_cursos_creacion, name='load_cursos_creacion'),
     path('ajax/load-temas-creacion/', views.load_temas_creacion, name='load_temas_creacion'),
     
+    #integración OnlyOffice
+    path('pregunta/nuevaonline/', views.pregunta_create_online, name='pregunta_create_online'),
+    path('pregunta/editar/<int:pregunta_id>/', views.pregunta_edit_online, name='pregunta_edit_online'),
+    path('onlyoffice/callback/', views.onlyoffice_callback, name='onlyoffice_callback'),
+    path('load-cursos-creacion/', views.load_cursos_creacion, name='ajax_load_cursos'),
+    path('load-temas-creacion/', views.load_temas_creacion, name='ajax_load_temas'),
 ]

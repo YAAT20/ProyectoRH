@@ -16,10 +16,11 @@ from django.utils.text import slugify
 from django.views.decorators.clickjacking import xframe_options_exempt
 from django.contrib import messages
 from django.urls import reverse
-
+from django.core.files.base import ContentFile
+from django.views.decorators.csrf import csrf_exempt
+from ..views.carga_masiva import create_exact_copy_docx
 # Python estándar
-import os
-import io
+import os, io, requests, re
 import logging
 from collections import defaultdict
 from datetime import timedelta
@@ -40,6 +41,9 @@ from docx.oxml.ns import qn
 # Importación de vistas de autenticación propias
 from .auth_views import exclude_supervisor
 
+import json
+import jwt
+import time
 
 # Gestión de Preguntas
 from django.core.paginator import Paginator
@@ -679,3 +683,236 @@ def descargar_preguntas(request):
     response['Content-Disposition'] = 'attachment; filename="preguntas_combinadas.docx"'
     
     return response
+
+
+## EDITOR EN LINEA CON ONLYFFICE :) xd
+
+def pregunta_create_online(request):
+    if request.method == "POST":
+        # 1. Obtener datos del formulario
+        uni_id = request.POST.get('universidad')
+        curso_id = request.POST.get('curso')
+        tema_id = request.POST.get('tema')
+        nivel = request.POST.get('nivel')
+        
+        # 2. Crear la instancia (el método save() de tu modelo generará el 'nombre')
+        nueva_pregunta = Pregunta.objects.create(
+            universidad_id=uni_id,
+            curso_id=curso_id,
+            tema_id=tema_id,
+            nivel=nivel,
+            usuario=request.user.userprofile,
+            respuesta=request.POST.get('respuesta', 'A')
+        )
+
+        # 3. Crear archivo .docx vacío inicial
+        # Es vital que el archivo exista en disco antes de abrir OnlyOffice
+        nombre_archivo = f"{nueva_pregunta.nombre}.docx"
+        # Usamos un contenido mínimo de docx (o una plantilla que tengas en static)
+        nueva_pregunta.contenido.save(
+            f"{nueva_pregunta.nombre}.docx", 
+            ContentFile(b"Contenido base para OnlyOffice")
+        )
+        
+        return redirect('pregunta_edit_online', pregunta_id=nueva_pregunta.id)
+
+    # Si es GET, mostrar formulario de selección
+    context = {
+        'universidades': Universidad.objects.all().order_by('nombre'),
+        'cursos': Curso.objects.all().order_by('nombre'),
+        'temas': Tema.objects.all().order_by('nombre'),
+    }
+    return render(request, 'Preguntas/pregunta_form_inicial.html', context)
+
+def pregunta_edit_online(request, pregunta_id):
+    pregunta = get_object_or_404(Pregunta, id=pregunta_id)
+    
+    # IMPORTANTE: Esta URL debe ser alcanzable por el contenedor de OnlyOffice
+    # Si usas host.docker.internal, asegúrate de que el puerto 8001 esté mapeado
+    file_url = f"http://192.168.18.22:8001{pregunta.contenido.url}" 
+    
+    # Callback también debe ser alcanzable por OnlyOffice
+    callback_url = request.build_absolute_uri(f"/onlyoffice/callback/?id={pregunta.id}")
+    
+    doc_key = f"pre_{pregunta.id}_{int(time.time())}"
+
+    payload = {
+        "document": {
+            "fileType": "docx",
+            "key": doc_key,
+            "title": f"{pregunta.nombre}.docx",
+            "url": file_url,
+            "permissions": {
+                "edit": True,
+                "download": False,
+                "print": False,
+                "copy": True,
+                "comment": True,
+            }
+        },
+        "editorConfig": {
+            "mode": "edit",
+            "callbackUrl": callback_url,
+            "user": {
+                "id": str(request.user.id),
+                "name": request.user.username
+            },
+            "lang": "es",
+            "customization": {
+                "forcesave": True,
+                "autosave": True,
+                "chat": False,
+                "help": False,
+                "toolbarHideFileName": True,
+            }
+        },
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 3600
+    }
+
+    # Firmar el token
+    token = jwt.encode(payload, settings.ONLYOFFICE_JWT_SECRET, algorithm="HS256")
+    
+    # En algunas versiones de PyJWT, encode devuelve bytes, asegúrate de pasarlo a string
+    if isinstance(token, bytes):
+        token = token.decode('utf-8')
+
+    context = {
+        "ONLYOFFICE_API_URL": settings.ONLYOFFICE_API_URL,
+        "DOC_TOKEN": token,
+        "pregunta": pregunta,
+        "PAYLOAD": payload 
+    }
+    return render(request, "Preguntas/onlyoffice_editor.html", context)
+
+def separar_pregunta_solucion_dinamico(original_doc, elementos_bloque):
+    """
+    Divide el cuerpo del doc en Enunciado y Solución.
+    Retorna: buf_enunciado, buf_solucion, clave_detectada
+    """
+    enunciado_els, solucion_els = [], []
+    encontrado_sol = False
+    clave_detectada = None
+
+    for el in elementos_bloque:
+        # Extraer texto del elemento XML para buscar patrones
+        txt = "".join(el.itertext()).strip().upper()
+        
+        # 1. Detectar Clave (Ej: "Clave: C")
+        match_clave = re.search(r'CLAVE:\s*([A-E])', txt)
+        if match_clave:
+            clave_detectada = match_clave.group(1)
+
+        # 2. Detectar separador de Solución (@SOLUCIÓN@ o SOLUCIÓN:)
+        if '@SOLUCIÓN@' in txt or 'SOLUCIÓN:' in txt:
+            encontrado_sol = True
+            continue 
+        
+        if encontrado_sol:
+            solucion_els.append(el)
+        else:
+            enunciado_els.append(el)
+
+    # Crear Enunciado (P)
+    doc_p = create_exact_copy_docx(original_doc, enunciado_els)
+    buf_p = io.BytesIO()
+    doc_p.save(buf_p)
+    buf_p.seek(0)
+
+    # Crear Solución (S)
+    buf_s = None
+    if encontrado_sol and solucion_els:
+        doc_s = create_exact_copy_docx(original_doc, solucion_els)
+        buf_s = io.BytesIO()
+        doc_s.save(buf_s)
+        buf_s.seek(0)
+
+    return buf_p, buf_s, clave_detectada
+
+@csrf_exempt
+def onlyoffice_callback(request):
+    print("\n--- [DEBUG ONLYOFFICE] Callback iniciado (Procesamiento Inteligente) ---")
+    try:
+        data = json.loads(request.body.decode("utf-8"))
+        status = data.get("status")
+        pregunta_id = request.GET.get("id")
+        
+        # Status 2: Cierre final | Status 6: Guardado forzado (disquete)
+        if status in [2, 6]:
+            download_url = data.get("url")
+            pregunta = Pregunta.objects.get(id=pregunta_id)
+            
+            # Descargamos el archivo que el usuario editó en OnlyOffice
+            response = requests.get(download_url)
+            if response.status_code == 200:
+                # Abrimos el documento en memoria
+                doc_editado = Document(io.BytesIO(response.content))
+                elementos = list(doc_editado.element.body)
+                
+                # --- AQUÍ OCURRE LA MAGIA ---
+                buf_p, buf_s, clave = separar_pregunta_solucion_dinamico(doc_editado, elementos)
+                
+                # 1. Guardar Enunciado (Sobrescribe contenido actual)
+                if buf_p:
+                    file_name_p = f"P_{pregunta.nombre}.docx"
+                    pregunta.contenido.save(file_name_p, ContentFile(buf_p.read()), save=False)
+                
+                # 2. Guardar Solución (Si existe)
+                if buf_s:
+                    file_name_s = f"S_{pregunta.nombre}.docx"
+                    pregunta.solucion_archivo.save(file_name_s, ContentFile(buf_s.read()), save=False)
+                    pregunta.tiene_solucion = True
+                
+                # 3. Actualizar clave automáticamente
+                if clave:
+                    pregunta.respuesta = clave
+                    print(f"Clave detectada automáticamente: {clave}")
+
+                pregunta.save()
+                print(f"¡ÉXITO! Pregunta {pregunta_id} procesada, separada y guardada.")
+            else:
+                print(f"ERROR: No se pudo descargar el archivo de OnlyOffice (HTTP {response.status_code})")
+
+    except Exception as e:
+        print(f"EXCEPCIÓN CRÍTICA en callback: {str(e)}")
+            
+    return JsonResponse({"error": 0})
+
+def pregunta_preview(request, pregunta_id):
+    pregunta = get_object_or_404(Pregunta, id=pregunta_id)
+    
+    # Configuramos el token para Modo Lectura
+    payload = {
+        "document": {
+            "fileType": "docx",
+            "key": f"prev_{pregunta.id}_{int(time.time())}",
+            "title": f"Vista Previa: {pregunta.nombre}",
+            "url": request.build_absolute_uri(pregunta.contenido.url),
+            "permissions": {
+                "edit": False,      # Bloqueado
+                "download": False,  # Bloqueado
+                "print": True,
+                "copy": True
+            }
+        },
+        "editorConfig": {
+            "mode": "view",         # MODO LECTURA
+            "lang": "es",
+            "customization": {
+                "toolbar": False,   # Oculta la barra de herramientas
+                "chat": False,
+                "help": False
+            }
+        },
+        "iat": int(time.time()) - 30,
+        "exp": int(time.time()) + 3600
+    }
+
+    token = jwt.encode(payload, settings.ONLYOFFICE_JWT_SECRET, algorithm="HS256")
+    
+    return render(request, "Preguntas/pregunta_preview.html", {
+        "DOC_TOKEN": token,
+        "pregunta": pregunta,
+        "ONLYOFFICE_API_URL": settings.ONLYOFFICE_API_URL,
+        "PAYLOAD": payload
+    })

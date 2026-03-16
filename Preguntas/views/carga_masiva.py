@@ -12,6 +12,10 @@ from django.core.files import File
 from ..forms import *
 from .auth_views import exclude_supervisor
 from ..models import Pregunta, UserProfile
+from docx.oxml.ns import qn
+from copy import deepcopy
+import io
+import logging
 
 @contextmanager
 def temp_docx_file(content_bytes, suffix='.docx'):
@@ -121,108 +125,123 @@ def create_exact_copy_docx(original_doc, block_elements):
     
     return new_doc
 
+def detectar_clave_resaltada(elements):
+    """
+    Analiza los elementos del bloque buscando texto con resaltado amarillo.
+    Retorna 'A', 'B', 'C', 'D' o 'E' si lo encuentra.
+    """
+    for element in elements:
+        # Buscamos en todos los 'runs' (fragmentos de texto) del párrafo/elemento
+        runs = element.xpath('.//w:r')
+        for r in runs:
+            rPr = r.find(qn('w:rPr'))
+            if rPr is not None:
+                highlight = rPr.find(qn('w:highlight'))
+                # Verificamos si el color de resaltado es 'yellow'
+                if highlight is not None and highlight.get(qn('w:val')) == 'yellow':
+                    texto = "".join(t.text for t in r.xpath('.//w:t') if t.text).strip().upper()
+                    # Extraer la letra (ejemplo: de "A)" extrae "A")
+                    for letra in ['A', 'B', 'C', 'D', 'E']:
+                        if letra in texto:
+                            return letra
+    return None
+
+logger = logging.getLogger(__name__)
+
 @login_required
 @staff_member_required
 @exclude_supervisor
 def masivo_pregunta_create(request):
     if request.method == 'POST':
         form = CargaMasivaPreguntaForm(request.POST, request.FILES)
-        if not form.is_valid():
-            messages.error(request, 'Por favor corrija los errores en el formulario.')
-            return render(request, 'Preguntas/masivo_pregunta_form.html', {
-                'form': form,
-                'title': 'Carga Masiva de Preguntas'
-            })
-
-        try:
-            # Datos del formulario
-            data = form.cleaned_data
-            universidad = data['universidad']
-            curso = data['curso']
-            tema = data['tema']
-            nivel = data['nivel']
-            respuesta_default = data['respuesta_default']
-            archivo_word = data['archivo']
-
-            # Leer el archivo una sola vez
-            archivo_bytes = archivo_word.read()
-            user_profile = UserProfile.objects.get(user=request.user)
-            
-            # Procesar documento original para extraer bloques
-            with temp_docx_file(archivo_bytes) as temp_path:
-                doc = Document(temp_path)
+        if form.is_valid():
+            try:
+                archivo_word = request.FILES['archivo']
+                archivo_bytes = archivo_word.read()
+                user_profile = UserProfile.objects.get(user=request.user)
                 
-                # Separar bloques por el separador '*****'
-                all_blocks = []
-                current_block = []
-                
-                for element in doc.element.body:
-                    text_elements = element.xpath('.//w:t')
-                    text = ''.join(t.text for t in text_elements if t.text).strip()
-
-                    if text == '*****':
-                        if current_block:
-                            all_blocks.append(current_block)
-                            current_block = []
-                    else:
-                        current_block.append(element)
-
-                if current_block:
-                    all_blocks.append(current_block)
-
-            # Contador base para nombres de preguntas
-            base_count = Pregunta.objects.filter(
-                universidad=universidad,
-                curso=curso,
-                tema=tema,
-                nivel=nivel
-            ).count()
-
-            preguntas_creadas = 0
-            
-            # Procesar cada bloque como pregunta
-            for i, block_elements in enumerate(all_blocks, start=1):
-                # Crear nuevo documento con todo el contenido original
+                # 1. SEPARACIÓN INICIAL POR BLOQUES
                 with temp_docx_file(archivo_bytes) as temp_path:
-                    original_doc = Document(temp_path)
-                    new_doc = create_exact_copy_docx(original_doc, block_elements)
+                    doc = Document(temp_path)
+                    all_blocks, current_block = [], []
                     
-                    # Guardar en memoria
-                    buffer = BytesIO()
-                    new_doc.save(buffer)
-                    buffer.seek(0)
+                    for element in doc.element.body:
+                        txt = ''.join(t.text for t in element.xpath('.//w:t') if t.text).strip()
+                        if txt == '*****':
+                            if current_block: 
+                                all_blocks.append(current_block)
+                                current_block = []
+                        else:
+                            current_block.append(element)
+                    if current_block: all_blocks.append(current_block)
 
-                # Crear la pregunta
-                pregunta = Pregunta(
-                    universidad=universidad,
-                    curso=curso,
-                    tema=tema,
-                    nivel=nivel,
-                    respuesta=respuesta_default,
-                    usuario=user_profile,
-                    tiene_solucion=False,
-                    nombre=f"{universidad.id}{curso.id}{tema.id}{nivel}{base_count + i}"
-                )
-                pregunta.save()
-                
-                # Guardar archivo con todo el contenido
-                filename = f"pregunta_{pregunta.nombre}.docx"
-                pregunta.contenido.save(filename, File(buffer))
-                preguntas_creadas += 1
+                # 2. PROCESAMIENTO DE BLOQUES
+                for i, block in enumerate(all_blocks, start=1):
+                    clave = detectar_clave_resaltada(block) or form.cleaned_data['respuesta_default']
+                    enunciado_els, solucion_els = [], []
+                    encontrado_sol = False
+                    
+                    for el in block:
+                        el_txt = ''.join(t.text for t in el.xpath('.//w:t') if t.text).strip().upper()
+                        if '@SOLUCIÓN@' in el_txt:
+                            encontrado_sol = True
+                            continue
+                        (solucion_els if encontrado_sol else enunciado_els).append(el)
 
-            messages.success(request, f'Se crearon {preguntas_creadas} preguntas exitosamente.')
-            return redirect('pregunta_list')
+                    # Generar los archivos en memoria
+                    with temp_docx_file(archivo_bytes) as temp_path:
+                        orig_doc = Document(temp_path)
+                        
+                        # Crear Enunciado
+                        doc_p = create_exact_copy_docx(orig_doc, enunciado_els)
+                        buf_p = io.BytesIO()
+                        doc_p.save(buf_p)
+                        buf_p.seek(0)
 
-        except Exception as e:
-            messages.error(request, f'Error al procesar el archivo: {str(e)}')
-            return render(request, 'Preguntas/masivo_pregunta_form.html', {
-                'form': form,
-                'title': 'Carga Masiva de Preguntas'
-            })
+                        # Crear Solución si existe
+                        buf_s = None
+                        if encontrado_sol and solucion_els:
+                            doc_s = create_exact_copy_docx(orig_doc, solucion_els)
+                            buf_s = io.BytesIO()
+                            doc_s.save(buf_s)
+                            buf_s.seek(0)
 
-    # GET request
-    form = CargaMasivaPreguntaForm()
-    return render(request, 'Preguntas/masivo_pregunta_form.html', {
-        'form': form,
-        'title': 'Carga Masiva de Preguntas'
-    })
+                    # 3. PERSISTENCIA EN BASE DE DATOS
+                    preg = Pregunta(
+                        universidad=form.cleaned_data['universidad'],
+                        curso=form.cleaned_data['curso'],
+                        tema=form.cleaned_data['tema'],
+                        nivel=form.cleaned_data['nivel'],
+                        respuesta=clave,
+                        usuario=user_profile,
+                        tiene_solucion=encontrado_sol
+                    )
+                    # Guardamos primero para que el modelo genere el 'nombre' autogenerado
+                    preg.save() 
+                    
+                    # Guardamos los archivos físicos usando el nombre autogenerado
+                    if buf_p:
+                        preg.contenido.save(f"P_{preg.nombre}.docx", File(buf_p), save=False)
+                    
+                    if buf_s:
+                        preg.solucion_archivo.save(f"S_{preg.nombre}.docx", File(buf_s), save=False)
+                    
+                    # Guardado final para registrar las rutas de los archivos
+                    preg.save()
+                    
+                    # Limpieza de buffers
+                    buf_p.close()
+                    if buf_s: buf_s.close()
+
+                messages.success(request, f'Éxito: Se cargaron {len(all_blocks)} preguntas correctamente.')
+                return redirect('pregunta-list')
+
+            except Exception as e:
+                logger.error(f"Error masivo crítico: {e}", exc_info=True)
+                messages.error(request, f"Error durante el procesamiento: {e}")
+        
+        # Si el formulario no es válido, regresamos al template con los errores
+        return render(request, 'Preguntas/masivo_pregunta_form.html', {'form': form})
+
+    # GET: Carga inicial del formulario
+    return render(request, 'Preguntas/masivo_pregunta_form.html', {'form': CargaMasivaPreguntaForm()})

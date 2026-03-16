@@ -18,6 +18,10 @@ LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
 
+ONLYOFFICE_API_URL = "http://localhost:8082"
+ONLYOFFICE_CALLBACK_URL = "http://host.docker.internal:8001/onlyoffice/callback/"
+ONLYOFFICE_JWT_SECRET = "CAJAMARCA2025"
+
 # Aplicaciones
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -63,11 +67,11 @@ TEMPLATES = [
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.mysql',
+        'ENGINE': 'django.db.backends.sqlite3',
         'NAME': 'db_banco_preguntas',
         'USER': 'root',
         'PASSWORD': 'tu_password_seguro_root',
-        'HOST': 'db_central',
+        'HOST': BASE_DIR / 'db.sqlite3',
         'PORT': '3306',
     }
 }

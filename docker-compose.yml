@@ -17,6 +17,17 @@ services:
       - app-network
     ports:
       - "8003:8000"
+    depends_on:
+      - onlyoffice
+      
+  onlyoffice:
+    image: onlyoffice/documentserver
+    container_name: onlyoffice
+    restart: always
+    ports:
+      - "8082:80"
+    networks:
+      - app-network
 
 networks:
   app-network:
