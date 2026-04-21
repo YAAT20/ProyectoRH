@@ -1,6 +1,7 @@
 # Importaciones relativas del proyecto
 from ..models import Universidad, Tema, Curso, Pregunta, UserProfile
-from ..forms import Pregunta, FiltroPreguntaForm, PreguntaForm
+from ..forms import Pregunta, PreguntaForm
+import uuid
 
 # Django - shortcuts y decoradores
 from django.shortcuts import render, redirect, get_object_or_404
@@ -18,9 +19,10 @@ from django.contrib import messages
 from django.urls import reverse
 from django.core.files.base import ContentFile
 from django.views.decorators.csrf import csrf_exempt
-from ..views.carga_masiva import create_exact_copy_docx
+from django.core.exceptions import PermissionDenied
+
 # Python estándar
-import os, io, requests, re
+import os, io, requests
 import logging
 from collections import defaultdict
 from datetime import timedelta
@@ -28,28 +30,29 @@ from datetime import timedelta
 # Librerías de terceros para manejo de documentos DOCX
 from docx import Document
 from docxcompose.composer import Composer
+from docx.enum.text import WD_COLOR_INDEX
 
 try:
     from docxcompose.composer import ImportFormatMode
 except ImportError:
     ImportFormatMode = None
 
-from docx.shared import Pt, Inches  # Tamaño de fuente y márgenes
+from docx.shared import Pt, Inches, Cm  # Tamaño de fuente y márgenes
 from docx.oxml import OxmlElement, ns
 from docx.oxml.ns import qn
 
 # Importación de vistas de autenticación propias
-from .auth_views import exclude_supervisor
+from .auth_views import exclude_supervisor, role_required
 
 import json
-import jwt
 import time
+import jwt
 
 # Gestión de Preguntas
 from django.core.paginator import Paginator
 
-@exclude_supervisor
 @login_required
+@role_required('admin', 'user')
 def pregunta_list(request):
     if request.user.is_superuser:
         qs_base = Pregunta.objects.all()
@@ -121,9 +124,10 @@ def pregunta_list(request):
         'tiempo_filtro': tiempo_filtro,
         'total_preguntas': qs.count(), 
     }
-    return render(request, 'Preguntas/pregunta_list.html', context)
+    return render(request, 'Preguntas/preguntas/pregunta_list.html', context)
 
 @login_required
+@role_required('admin', 'supervisor')
 def pregunta_list_supervisor(request):
     qs = Pregunta.objects.select_related('usuario__user', 'universidad', 'curso', 'tema').all()
 
@@ -151,10 +155,11 @@ def pregunta_list_supervisor(request):
         'buscar_usuario': buscar_usuario,
     }
 
-    return render(request, 'Preguntas/lista_supervisor.html', context)
+    return render(request, 'Preguntas/preguntas/lista_supervisor.html', context)
 
 @login_required
 @exclude_supervisor
+@role_required('admin', 'user')
 def pregunta_create(request):
     if request.method == 'POST':
         form = PreguntaForm(request.POST, request.FILES)
@@ -184,13 +189,13 @@ def pregunta_create(request):
             nuevo_formulario = PreguntaForm(data, is_update=False)
             nuevo_formulario.fields['contenido'].required = False
 
-            return render(request, 'Preguntas/pregunta_form.html', {
+            return render(request, 'Preguntas/preguntas/pregunta_form.html', {
                 'form': nuevo_formulario,
                 'title': 'Nueva Pregunta'
             })
 
         else:
-            return render(request, 'Preguntas/pregunta_form.html', {
+            return render(request, 'Preguntas/preguntas /pregunta_form.html', {
                 'form': form,
                 'title': 'Nueva Pregunta'
             })
@@ -204,6 +209,7 @@ def pregunta_create(request):
 
 @login_required
 @exclude_supervisor
+@role_required('admin', 'user')
 def pregunta_update(request, pk):
     try:
         user_profile = UserProfile.objects.get(user=request.user)
@@ -256,7 +262,7 @@ def pregunta_update(request, pk):
     else:
         form = PreguntaForm(instance=pregunta, is_update=True)
 
-    return render(request, 'Preguntas/pregunta_form.html', {
+    return render(request, 'Preguntas/preguntas/pregunta_form.html', {
         'form': form,
         'pregunta': pregunta,
         'title': 'Editar Pregunta',
@@ -266,6 +272,7 @@ def pregunta_update(request, pk):
 
 @require_POST
 @login_required
+@role_required('admin')
 def actualizar_rapido_pregunta(request):
     try:
         pregunta_id = request.POST.get('id')
@@ -314,6 +321,7 @@ def actualizar_rapido_pregunta(request):
     
 @login_required
 @exclude_supervisor
+@role_required('admin', 'user')
 def pregunta_delete(request, pk):
     try:
         user_profile = UserProfile.objects.get(user=request.user)
@@ -334,13 +342,14 @@ def pregunta_delete(request, pk):
         messages.success(request, 'Pregunta eliminada exitosamente.')
         return redirect('pregunta-list')  # Redirige siempre a la lista
 
-    return render(request, 'Preguntas/pregunta_confirm_delete.html', {
+    return render(request, 'Preguntas/preguntas/pregunta_confirm_delete.html', {
         'pregunta': pregunta,
         'volver_url': referer, 
     })
 
 @login_required
 @exclude_supervisor
+@role_required('admin', 'user')
 def eliminar_preguntas(request):
     if request.method == 'POST':
         pregunta_ids = request.POST.getlist('preguntas')
@@ -370,7 +379,6 @@ def eliminar_preguntas(request):
 
     # Si no es POST, redirigir
     return redirect('pregunta-list')
-
 
 #desde aquí empecé a modificar lo del formato de las preguntas
 #para darle 2 columnas al doc final
@@ -605,7 +613,7 @@ def cleanup_old_pdfs():
         
         import time
         current_time = time.time()
-        week_ago = current_time - (7 * 24 * 60 * 60)  # 7 días
+        week_ago = current_time - (3 * 24 * 60 * 60)  # 7 días
         
         for filename in os.listdir(pdf_dir):
             file_path = os.path.join(pdf_dir, filename)
@@ -623,6 +631,8 @@ def cleanup_old_pdfs():
 
 @staff_member_required
 @exclude_supervisor
+@login_required
+@role_required('admin')
 def todas_las_preguntas(request):
     qs = Pregunta.objects.all()
 
@@ -655,7 +665,7 @@ def todas_las_preguntas(request):
 
     }
 
-    return render(request, 'Preguntas/todas_las_preguntas.html', context)
+    return render(request, 'Preguntas/admin/todas_las_preguntas.html', context)
 
 @login_required
 @exclude_supervisor
@@ -684,235 +694,279 @@ def descargar_preguntas(request):
     
     return response
 
-
 ## EDITOR EN LINEA CON ONLYFFICE :) xd
+def crear_docx_minimo(ancho_cm=7):
+    doc = Document()
+    section = doc.sections[0]
+    section.page_width = Cm(ancho_cm)
+    section.page_height = Cm(29.7) 
+    section.top_margin = section.bottom_margin = section.left_margin = section.right_margin = Cm(0.5)
 
-def pregunta_create_online(request):
-    if request.method == "POST":
-        # 1. Obtener datos del formulario
-        uni_id = request.POST.get('universidad')
-        curso_id = request.POST.get('curso')
-        tema_id = request.POST.get('tema')
-        nivel = request.POST.get('nivel')
-        
-        # 2. Crear la instancia (el método save() de tu modelo generará el 'nombre')
-        nueva_pregunta = Pregunta.objects.create(
-            universidad_id=uni_id,
-            curso_id=curso_id,
-            tema_id=tema_id,
-            nivel=nivel,
-            usuario=request.user.userprofile,
-            respuesta=request.POST.get('respuesta', 'A')
-        )
-
-        # 3. Crear archivo .docx vacío inicial
-        # Es vital que el archivo exista en disco antes de abrir OnlyOffice
-        nombre_archivo = f"{nueva_pregunta.nombre}.docx"
-        # Usamos un contenido mínimo de docx (o una plantilla que tengas en static)
-        nueva_pregunta.contenido.save(
-            f"{nueva_pregunta.nombre}.docx", 
-            ContentFile(b"Contenido base para OnlyOffice")
-        )
-        
-        return redirect('pregunta_edit_online', pregunta_id=nueva_pregunta.id)
-
-    # Si es GET, mostrar formulario de selección
-    context = {
-        'universidades': Universidad.objects.all().order_by('nombre'),
-        'cursos': Curso.objects.all().order_by('nombre'),
-        'temas': Tema.objects.all().order_by('nombre'),
-    }
-    return render(request, 'Preguntas/pregunta_form_inicial.html', context)
-
-def pregunta_edit_online(request, pregunta_id):
-    pregunta = get_object_or_404(Pregunta, id=pregunta_id)
+    style = doc.styles['Normal']
+    font = style.font
+    font.name = 'Arial Narrow'
+    font.size = Pt(9)
     
-    # IMPORTANTE: Esta URL debe ser alcanzable por el contenedor de OnlyOffice
-    # Si usas host.docker.internal, asegúrate de que el puerto 8001 esté mapeado
-    file_url = f"http://192.168.18.22:8001{pregunta.contenido.url}" 
-    
-    # Callback también debe ser alcanzable por OnlyOffice
-    callback_url = request.build_absolute_uri(f"/onlyoffice/callback/?id={pregunta.id}")
-    
-    doc_key = f"pre_{pregunta.id}_{int(time.time())}"
+    rPr = style.element.get_or_add_rPr()
+    rFonts = rPr.get_or_add_rFonts()
+    rFonts.set(qn('w:ascii'), 'Arial Narrow')
+    rFonts.set(qn('w:hAnsi'), 'Arial Narrow')
 
+    doc.add_paragraph("")
+    buf = io.BytesIO()
+    doc.save(buf)
+    buf.seek(0)
+    return buf.read()
+
+def generar_token_office(request, pregunta, modo='edit', es_solucion=False):
+    dominio_publico = settings.SITE_DOMAIN
+
+    ip_interna = "http://192.168.18.20:8003"
+    
+    archivo = pregunta.solucion_archivo if es_solucion else pregunta.contenido
+    if not archivo:
+        logger.error(f"Error: Intento de editar archivo inexistente para pregunta {pregunta.id}")
+        return None, None
+
+    file_url = f"{ip_interna}{archivo.url}"
+    tipo_str = 'sol' if es_solucion else 'pre'
+    
+    try:
+        version_key = int(os.path.getmtime(archivo.path))
+    except Exception as e:
+        logger.warning(f"No se pudo obtener mtime: {e}. Usando ID como fallback.")
+        version_key = pregunta.id
+
+    # La KEY DEBE ser distinta para PRE y SOL
+    document_key = f"{tipo_str.upper()}_{pregunta.id}_{uuid.uuid4().hex}"
+    
+    # Callback dinámico
+    callback_url = f"{ip_interna}/onlyoffice/callback/?id={pregunta.id}&tipo={tipo_str}"
+    
+    logger.info(f"--- GENERANDO TOKEN ONLYOFFICE ---")
+    logger.info(f"Modo: {modo} | Tipo: {tipo_str}")
+    logger.info(f"URL Archivo: {file_url}")
+    logger.info(f"URL Callback: {callback_url}")
+    logger.info(f"Document Key: {document_key}")
+    
     payload = {
+        "iat": int(time.time()),
+        "exp": int(time.time()) + 3600,
         "document": {
             "fileType": "docx",
-            "key": doc_key,
-            "title": f"{pregunta.nombre}.docx",
+            "key": document_key, 
+            "title": f"{tipo_str.upper()}_{pregunta.nombre}.docx",
             "url": file_url,
             "permissions": {
-                "edit": True,
-                "download": False,
-                "print": False,
+                "edit": modo == 'edit',
+                "download": True,
                 "copy": True,
-                "comment": True,
             }
         },
         "editorConfig": {
-            "mode": "edit",
-            "callbackUrl": callback_url,
-            "user": {
-                "id": str(request.user.id),
-                "name": request.user.username
-            },
+            "mode": modo,
             "lang": "es",
+            "callbackUrl": callback_url if modo == 'edit' else None,
             "customization": {
                 "forcesave": True,
                 "autosave": True,
-                "chat": False,
-                "help": False,
-                "toolbarHideFileName": True,
+                "compactHeader": True,
+                "toolbar": modo == 'edit',
             }
-        },
-        "iat": int(time.time()),
-        "exp": int(time.time()) + 3600
+        }
     }
-
-    # Firmar el token
     token = jwt.encode(payload, settings.ONLYOFFICE_JWT_SECRET, algorithm="HS256")
     
-    # En algunas versiones de PyJWT, encode devuelve bytes, asegúrate de pasarlo a string
-    if isinstance(token, bytes):
-        token = token.decode('utf-8')
-
-    context = {
-        "ONLYOFFICE_API_URL": settings.ONLYOFFICE_API_URL,
-        "DOC_TOKEN": token,
-        "pregunta": pregunta,
-        "PAYLOAD": payload 
+    payload_js = {
+        "document": json.dumps(payload["document"]),
+        "editorConfig": json.dumps(payload["editorConfig"])
     }
-    return render(request, "Preguntas/onlyoffice_editor.html", context)
 
-def separar_pregunta_solucion_dinamico(original_doc, elementos_bloque):
-    """
-    Divide el cuerpo del doc en Enunciado y Solución.
-    Retorna: buf_enunciado, buf_solucion, clave_detectada
-    """
-    enunciado_els, solucion_els = [], []
-    encontrado_sol = False
-    clave_detectada = None
+    return token, payload_js
 
-    for el in elementos_bloque:
-        # Extraer texto del elemento XML para buscar patrones
-        txt = "".join(el.itertext()).strip().upper()
-        
-        # 1. Detectar Clave (Ej: "Clave: C")
-        match_clave = re.search(r'CLAVE:\s*([A-E])', txt)
-        if match_clave:
-            clave_detectada = match_clave.group(1)
+# --- VISTAS DEL FLUJO ---
 
-        # 2. Detectar separador de Solución (@SOLUCIÓN@ o SOLUCIÓN:)
-        if '@SOLUCIÓN@' in txt or 'SOLUCIÓN:' in txt:
-            encontrado_sol = True
-            continue 
-        
-        if encontrado_sol:
-            solucion_els.append(el)
-        else:
-            enunciado_els.append(el)
+@login_required
+@role_required('admin', 'user')
+def configurar_contexto(request):
+    """Pantalla inicial para definir Universidad, Curso, etc."""
+    if request.method == "POST":
+        request.session['admin_uni'] = request.POST.get('universidad')
+        request.session['admin_curso'] = request.POST.get('curso')
+        request.session['admin_tema'] = request.POST.get('tema')
+        request.session['admin_nivel'] = request.POST.get('nivel')
+        return redirect('flujo_carga_continua')
+    
+    return render(request, 'Preguntas/preguntas/configurar_contexto.html', {
+        'universidades': Universidad.objects.all().order_by('nombre'),
+        'cursos': Curso.objects.all().order_by('nombre'),
+        'temas': Tema.objects.all().order_by('nombre'),
+    })
 
-    # Crear Enunciado (P)
-    doc_p = create_exact_copy_docx(original_doc, enunciado_els)
-    buf_p = io.BytesIO()
-    doc_p.save(buf_p)
-    buf_p.seek(0)
+@login_required
+@role_required('admin', 'user')
+def flujo_carga_continua(request):
+    """Crea la pregunta y abre el editor de 7cm."""
+    uni_id = request.session.get('admin_uni')
+    if not uni_id: 
+        return redirect('configurar_contexto')
 
-    # Crear Solución (S)
-    buf_s = None
-    if encontrado_sol and solucion_els:
-        doc_s = create_exact_copy_docx(original_doc, solucion_els)
-        buf_s = io.BytesIO()
-        doc_s.save(buf_s)
-        buf_s.seek(0)
+    nueva_pregunta = Pregunta.objects.create(
+        universidad_id=uni_id,
+        curso_id=request.session.get('admin_curso'),
+        tema_id=request.session.get('admin_tema'),
+        nivel=request.session.get('admin_nivel'),
+        usuario=request.user.userprofile
+    )
+    
+    # Guardar archivo inicial
+    nueva_pregunta.contenido.save(
+        f"{nueva_pregunta.nombre}.docx", 
+        ContentFile(crear_docx_minimo(7))
+    )
 
-    return buf_p, buf_s, clave_detectada
+    token, payload = generar_token_office(request, nueva_pregunta, modo='edit')
+
+    return render(request, 'Preguntas/preguntas/editor_continuo.html', {
+        'pregunta': nueva_pregunta,
+        'DOC_TOKEN': token,
+        'PAYLOAD': payload,
+        'ONLYOFFICE_API_URL': settings.ONLYOFFICE_API_URL
+    })
 
 @csrf_exempt
 def onlyoffice_callback(request):
-    print("\n--- [DEBUG ONLYOFFICE] Callback iniciado (Procesamiento Inteligente) ---")
+    """Guarda el archivo y detecta la clave resaltada."""
+    if request.method != "POST":
+        return JsonResponse({"error": 1, "message": "Método no permitido"})
+
     try:
         data = json.loads(request.body.decode("utf-8"))
         status = data.get("status")
         pregunta_id = request.GET.get("id")
-        
-        # Status 2: Cierre final | Status 6: Guardado forzado (disquete)
+        tipo = request.GET.get("tipo", "pre")
+
+        # 2 = Documento listo para guardar, 6 = Guardado forzado
         if status in [2, 6]:
             download_url = data.get("url")
             pregunta = Pregunta.objects.get(id=pregunta_id)
             
-            # Descargamos el archivo que el usuario editó en OnlyOffice
-            response = requests.get(download_url)
+            response = requests.get(download_url, verify=False, timeout=10)
+
             if response.status_code == 200:
-                # Abrimos el documento en memoria
-                doc_editado = Document(io.BytesIO(response.content))
-                elementos = list(doc_editado.element.body)
+                content_data = response.content
                 
-                # --- AQUÍ OCURRE LA MAGIA ---
-                buf_p, buf_s, clave = separar_pregunta_solucion_dinamico(doc_editado, elementos)
+                if tipo == 'pre':
+                    import re
+                    doc = Document(io.BytesIO(content_data))
+                    encontrado = False
+                    
+                    for p in doc.paragraphs:
+                        if encontrado: break 
+                        
+                        for run in p.runs:
+                            if run.font.highlight_color not in [None, WD_COLOR_INDEX.AUTO]:
+                                texto_resaltado = run.text.strip().upper()
+                                match = re.search(r'([A-E])(?:\s|[\)\.\-]|)', texto_resaltado)
+                                
+                                if match:
+                                    pregunta.respuesta = match.group(1)
+                                    encontrado = True
+                                    break
+                    
+                    pregunta.contenido.save(f"{pregunta.nombre}.docx", ContentFile(content_data), save=False)
+                else:
+                    pregunta.solucion_archivo.save(f"sol_{pregunta.nombre}.docx", ContentFile(content_data), save=False)
                 
-                # 1. Guardar Enunciado (Sobrescribe contenido actual)
-                if buf_p:
-                    file_name_p = f"P_{pregunta.nombre}.docx"
-                    pregunta.contenido.save(file_name_p, ContentFile(buf_p.read()), save=False)
-                
-                # 2. Guardar Solución (Si existe)
-                if buf_s:
-                    file_name_s = f"S_{pregunta.nombre}.docx"
-                    pregunta.solucion_archivo.save(file_name_s, ContentFile(buf_s.read()), save=False)
-                    pregunta.tiene_solucion = True
-                
-                # 3. Actualizar clave automáticamente
-                if clave:
-                    pregunta.respuesta = clave
-                    print(f"Clave detectada automáticamente: {clave}")
-
                 pregunta.save()
-                print(f"¡ÉXITO! Pregunta {pregunta_id} procesada, separada y guardada.")
-            else:
-                print(f"ERROR: No se pudo descargar el archivo de OnlyOffice (HTTP {response.status_code})")
 
+        return JsonResponse({"error": 0})
     except Exception as e:
-        print(f"EXCEPCIÓN CRÍTICA en callback: {str(e)}")
-            
-    return JsonResponse({"error": 0})
+        print(f"ERROR CALLBACK: {str(e)}")
+        return JsonResponse({"error": 1, "message": str(e)})
 
-def pregunta_preview(request, pregunta_id):
+@login_required
+@role_required('admin', 'user')
+def agregar_solucion_ajax(request, pregunta_id):
+    pregunta = get_object_or_404(Pregunta, id=pregunta_id)
+    if not pregunta.solucion_archivo:
+        pregunta.solucion_archivo.save(
+            f"sol_{pregunta.nombre}.docx", 
+            ContentFile(crear_docx_minimo(ancho_cm=7)) 
+        )
+        pregunta.tiene_solucion = True
+        pregunta.save()
+    
+    token, payload = generar_token_office(request, pregunta, es_solucion=True)
+    return JsonResponse({'token': token, 'payload': payload})
+
+@login_required
+@role_required('admin', 'user')
+def pregunta_edit(request, pregunta_id):
+    """Reabre el editor de OnlyOffice con validación de autoría."""
     pregunta = get_object_or_404(Pregunta, id=pregunta_id)
     
-    # Configuramos el token para Modo Lectura
-    payload = {
-        "document": {
-            "fileType": "docx",
-            "key": f"prev_{pregunta.id}_{int(time.time())}",
-            "title": f"Vista Previa: {pregunta.nombre}",
-            "url": request.build_absolute_uri(pregunta.contenido.url),
-            "permissions": {
-                "edit": False,      # Bloqueado
-                "download": False,  # Bloqueado
-                "print": True,
-                "copy": True
-            }
-        },
-        "editorConfig": {
-            "mode": "view",         # MODO LECTURA
-            "lang": "es",
-            "customization": {
-                "toolbar": False,   # Oculta la barra de herramientas
-                "chat": False,
-                "help": False
-            }
-        },
-        "iat": int(time.time()) - 30,
-        "exp": int(time.time()) + 3600
-    }
+    if not request.user.is_staff and pregunta.usuario != request.user.userprofile:
+        raise PermissionDenied("No tienes permiso para editar esta pregunta.")
 
-    token = jwt.encode(payload, settings.ONLYOFFICE_JWT_SECRET, algorithm="HS256")
+    token, payload = generar_token_office(request, pregunta, modo='edit')
+
+    return render(request, 'Preguntas/preguntas/editor_continuo.html', {
+        'pregunta': pregunta,
+        'DOC_TOKEN': token,
+        'PAYLOAD': payload,
+        'ONLYOFFICE_API_URL': settings.ONLYOFFICE_API_URL,
+        'es_edicion_manual': True
+    })
+
+@login_required
+@role_required('admin', 'user')
+def solucion_edit(request, pregunta_id):
+    """Abre el editor de OnlyOffice para la solución."""
+    pregunta = get_object_or_404(Pregunta, id=pregunta_id)
     
-    return render(request, "Preguntas/pregunta_preview.html", {
+    if not request.user.is_staff and pregunta.usuario != request.user.userprofile:
+        raise PermissionDenied("No tienes permiso.")
+
+    # Si no existe, crear el docx de 14cm
+    if not pregunta.solucion_archivo:
+        pregunta.solucion_archivo.save(
+            f"sol_{pregunta.nombre}.docx", 
+            ContentFile(crear_docx_minimo(ancho_cm=7))
+        )
+        pregunta.tiene_solucion = True
+        pregunta.save()
+
+    token, payload = generar_token_office(request, pregunta, modo='edit', es_solucion=True)
+
+    return render(request, 'Preguntas/preguntas/editor_continuo.html', {
+        'pregunta': pregunta,
+        'DOC_TOKEN': token,
+        'PAYLOAD': payload,
+        'ONLYOFFICE_API_URL': settings.ONLYOFFICE_API_URL,
+        'es_edicion_manual': True,
+        'es_solucion': True
+    })
+
+@login_required
+@role_required('admin', 'user')
+def generic_preview(request, pregunta_id, tipo='pregunta'):
+    """Vista unificada para previsualizar Enunciados o Soluciones."""
+    pregunta = get_object_or_404(Pregunta, id=pregunta_id)
+    es_sol = (tipo == 'solucion')
+    
+    # Seleccionar el archivo correcto
+    archivo = pregunta.solucion_archivo if es_sol else pregunta.contenido
+    if not archivo:
+        return JsonResponse({"error": f"No hay archivo de {tipo} disponible."}, status=404)
+
+    # Generamos el token dinámico
+    token, payload = generar_token_office(request, pregunta, modo='view', es_solucion=es_sol)
+
+    return render(request, "Preguntas/preguntas/pregunta_preview.html", {
         "DOC_TOKEN": token,
+        "PAYLOAD": payload,
         "pregunta": pregunta,
         "ONLYOFFICE_API_URL": settings.ONLYOFFICE_API_URL,
-        "PAYLOAD": payload
+        "titulo_preview": "Vista Previa de Solución" if es_sol else "Vista Previa de Pregunta"
     })

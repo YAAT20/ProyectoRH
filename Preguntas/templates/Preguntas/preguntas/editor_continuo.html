@@ -1,0 +1,144 @@
+{% extends 'Preguntas/home.html' %}
+{% block content %}
+
+<input type="hidden" id="tiene-solucion-flag" value="{% if pregunta.solucion_archivo %}true{% else %}false{% endif %}">
+
+<div class="d-flex flex-column" style="height: 100vh; overflow: hidden;">
+    <div class="p-2 bg-dark text-white d-flex justify-content-between align-items-center shadow">
+        <div class="d-flex align-items-center gap-2">
+            <span class="badge bg-primary">{{ pregunta.universidad.nombre }}</span>
+            <span class="badge bg-info" id="badge-estado">Editando</span>
+        </div>
+
+        <div class="d-flex gap-2">
+            {% if not pregunta.solucion_archivo %}
+            <button class="btn btn-sm btn-outline-warning" onclick="activarSolucion()" id="btn-add-sol">
+                <i class="fas fa-plus"></i> Agregar Solución
+            </button>
+            {% endif %}
+            <button type="button" id="btn-save-nav" class="btn btn-sm btn-success fw-bold px-3"
+                    data-url="{% if es_edicion_manual %}{% url 'pregunta-list' %}{% else %}{% url 'flujo_carga_continua' %}{% endif %}"
+                    onclick="prepararGuardado(this)">
+                <i class="fas fa-save"></i> GUARDAR Y CONTINUAR
+            </button>
+            <a href="{% url 'configurar_contexto' %}" class="btn btn-sm btn-danger px-3">Terminar</a>
+        </div>
+    </div>
+
+    <div class="row g-0 flex-grow-1" style="background-color: #eee;">
+        <div class="col h-100 d-flex flex-column">
+            <div class="bg-light border-bottom px-3 py-1 small fw-bold text-muted">
+                ARCHIVO: {{ pregunta.nombre }}.docx
+            </div>
+            <div id="placeholder_pregunta" class="flex-grow-1"></div>
+        </div>
+        
+        <div class="col-md-6 h-100 border-start bg-white shadow-lg d-flex flex-column" id="col-solucion" style="display: none;">
+            <div class="bg-light border-bottom px-3 py-1 small fw-bold text-success">
+                SOLUCIÓN: sol_{{ pregunta.nombre }}.docx
+            </div>
+            <div id="placeholder_solucion" class="flex-grow-1"></div>
+        </div>
+    </div>
+</div>
+
+<script type="text/javascript" src="{{ ONLYOFFICE_API_URL }}"></script>
+<script>
+    /** * PASO 2: JavaScript Puro (Sin etiquetas Django)
+     * El Linter ya no marcará error porque esto es 100% JS legal.
+     */
+    
+    // Inicializar editor principal (los valores safe vienen de strings, eso es legal para el linter)
+    const docData = JSON.parse('{{ PAYLOAD.document|safe }}');
+    const editorCfg = JSON.parse('{{ PAYLOAD.editorConfig|safe }}');
+    
+    var docEditorPre = new DocsAPI.DocEditor("placeholder_pregunta", {
+        "document": docData,
+        "documentType": "word",
+        "token": "{{ DOC_TOKEN }}",
+        "editorConfig": editorCfg,
+        "width": "100%",
+        "height": "100%"
+    });
+
+    // Verificar el flag oculto al cargar la página
+    window.addEventListener('load', function() {
+        const flag = document.getElementById('tiene-solucion-flag').value;
+        if (flag === "true") {
+            console.log("Sistema: Solución detectada, inicializando panel secundario...");
+            activarSolucion();
+        }
+    });
+
+    function activarSolucion() {
+        const btnSol = document.getElementById('btn-add-sol');
+        if (btnSol) btnSol.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+
+        // Usamos la URL que Django ya renderizó en el template
+        const ajaxUrl = "{% url 'agregar_solucion_ajax' pregunta.id %}";
+
+        fetch(ajaxUrl)
+            .then(r => r.json())
+            .then(data => {
+                document.getElementById('col-solucion').style.display = 'flex';
+                if (btnSol) btnSol.style.display = 'none';
+                
+                document.getElementById('badge-estado').className = "badge bg-success";
+                document.getElementById('badge-estado').innerText = "Pregunta + Solución";
+
+                window.docEditorSol = new DocsAPI.DocEditor("placeholder_solucion", {
+                    "document": JSON.parse(data.payload.document),
+                    "documentType": "word",
+                    "token": data.token,
+                    "editorConfig": JSON.parse(data.payload.editorConfig),
+                    "width": "100%",
+                    "height": "100%"
+                });
+            })
+            .catch(err => console.error("Error al cargar solución:", err));
+    }
+
+    async function prepararGuardado(elemento) {
+        const urlDestino = elemento.getAttribute('data-url');
+        if (!urlDestino) {
+            console.error("Error: No se encontró la URL de destino.");
+            return;
+        }
+
+        const btn = document.getElementById('btn-save-nav');
+        btn.innerHTML = '<i class="fas fa-sync fa-spin"></i> Sincronizando...';
+        btn.classList.add('disabled');
+
+        // 2. Guardar ENUNCIADO (Pregunta)
+        try {
+            if (window.docEditorPre && typeof window.docEditorPre.processSave === 'function') {
+                console.log("Guardando Pregunta...");
+                window.docEditorPre.processSave();
+            }
+        } catch (e) {
+            console.warn("Error guardando pregunta:", e);
+        }
+
+        // 3. ESPERA TÉCNICA (600ms)
+        // Esto es lo que evita que las peticiones choquen y se pierda una
+        await new Promise(resolve => setTimeout(resolve, 600));
+
+        // 4. Guardar SOLUCIÓN (Solo si existe)
+        try {
+            if (window.docEditorSol && typeof window.docEditorSol.processSave === 'function') {
+                console.log("Guardando Solución...");
+                window.docEditorSol.processSave();
+            }
+        } catch (e) {
+            console.warn("Error guardando solución:", e);
+        }
+
+        // 5. Redirección final
+        // Esperamos 2.5s totales para que el servidor de la Academia procese los archivos
+        setTimeout(() => {
+            console.log("Redirigiendo a:", urlDestino);
+            window.location.href = urlDestino;
+        }, 2500);
+    }
+</script>
+{% endblock %}

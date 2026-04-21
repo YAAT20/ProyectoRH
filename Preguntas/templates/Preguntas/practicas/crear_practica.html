@@ -1,0 +1,378 @@
+{% extends 'Preguntas/home.html' %}
+
+{% block title %}Generar Práctica{% endblock %}
+
+{% block content %}
+<style>
+    /* Variables y Reset Básico */
+    :root {
+        --primary-color: #4f46e5;
+        --primary-hover: #4338ca;
+        --surface-color: #ffffff;
+        --border-color: #e5e7eb;
+        --text-main: #111827;
+        --text-muted: #6b7280;
+        --bg-subtle: #f9fafb;
+    }
+
+    .exam-container {
+        max-width: 650px;
+        margin: 3rem auto;
+        padding: 0 1rem;
+        font-family: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+
+    /* Tarjeta Principal */
+    .exam-card {
+        background: var(--surface-color);
+        padding: 2.5rem 3rem;
+        border-radius: 16px;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 10px 15px -3px rgba(0, 0, 0, 0.05);
+        border: 1px solid rgba(229, 231, 235, 0.5);
+    }
+
+    /* Encabezado */
+    .exam-header {
+        text-align: center;
+        margin-bottom: 2rem;
+    }
+
+    .exam-header-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 56px;
+        height: 56px;
+        background-color: #eef2ff;
+        color: var(--primary-color);
+        border-radius: 16px;
+        font-size: 1.5rem;
+        margin-bottom: 1rem;
+    }
+
+    .exam-title {
+        color: var(--text-main);
+        font-size: 1.75rem;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        margin: 0;
+    }
+
+    .exam-subtitle {
+        color: var(--text-muted);
+        font-size: 0.95rem;
+        margin-top: 0.5rem;
+    }
+
+    /* Grupos de Formulario */
+    .form-group {
+        margin-bottom: 1.5rem;
+    }
+
+    .form-label {
+        display: flex;
+        align-items: center;
+        color: #374151;
+        font-weight: 600;
+        margin-bottom: 0.5rem;
+        font-size: 0.9rem;
+    }
+
+    .form-label i {
+        color: #9ca3af;
+        margin-right: 0.5rem;
+        font-size: 0.85rem;
+    }
+
+    .form-label-hint {
+        font-size: 0.8rem;
+        color: #9ca3af;
+        font-weight: 400;
+        margin-left: auto; /* Empuja el hint a la derecha */
+    }
+
+    /* Inputs y Selects */
+    .form-control {
+        width: 100%;
+        padding: 0.75rem 1rem;
+        border: 1px solid var(--border-color);
+        border-radius: 10px;
+        background-color: var(--surface-color);
+        color: var(--text-main);
+        font-size: 0.95rem;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        box-sizing: border-box;
+        appearance: none; /* Limpia estilos nativos del select en algunos SO */
+    }
+
+    select.form-control:not([multiple]) {
+        background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%236b7280'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+        background-position: right 1rem center;
+        background-repeat: no-repeat;
+        background-size: 1.25em;
+        padding-right: 2.5rem;
+    }
+
+    .form-control:focus {
+        outline: none;
+        border-color: var(--primary-color);
+        box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.1);
+    }
+
+    .form-control:disabled {
+        background-color: var(--bg-subtle);
+        color: #9ca3af;
+        border-color: #f3f4f6;
+        cursor: not-allowed;
+    }
+
+    /* Estilo Especial para Select Múltiple */
+    select[multiple].form-control {
+        height: auto;
+        min-height: 140px;
+        padding: 0.5rem;
+        background-image: none;
+    }
+
+    select[multiple].form-control option {
+        padding: 0.6rem 0.8rem;
+        border-radius: 6px;
+        margin-bottom: 2px;
+        color: #4b5563;
+        transition: background-color 0.1s;
+    }
+    
+    select[multiple].form-control option:checked {
+        background-color: #eef2ff linear-gradient(0deg, #eef2ff 0%, #eef2ff 100%);
+        color: var(--primary-color);
+        font-weight: 600;
+    }
+
+    /* Chips de Cantidad */
+    .quantity-selector {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+        margin-top: 0.5rem;
+    }
+    
+    .quantity-selector input[type="radio"] { display: none; }
+    
+    .quantity-selector label {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 64px;
+        padding: 0.6rem 1rem;
+        background-color: var(--surface-color);
+        color: #4b5563;
+        border: 1px solid var(--border-color);
+        border-radius: 9999px; /* Aspecto de píldora redonda */
+        font-weight: 600;
+        font-size: 1rem;
+        cursor: pointer;
+        transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+        user-select: none;
+    }
+    
+    .quantity-selector label:hover {
+        background-color: var(--bg-subtle);
+        border-color: #d1d5db;
+    }
+    
+    .quantity-selector input[type="radio"]:checked + label {
+        background-color: var(--primary-color);
+        color: white;
+        border-color: var(--primary-color);
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.3);
+        transform: translateY(-1px);
+    }
+
+    /* Botón Submit */
+    .btn-submit {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 100%;
+        padding: 0.875rem;
+        background-color: var(--primary-color);
+        color: white;
+        border: none;
+        border-radius: 10px;
+        font-size: 1.05rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        margin-top: 2rem;
+        box-shadow: 0 4px 6px -1px rgba(79, 70, 229, 0.2);
+    }
+
+    .btn-submit:hover {
+        background-color: var(--primary-hover);
+        box-shadow: 0 6px 8px -1px rgba(79, 70, 229, 0.3);
+    }
+
+    .btn-submit:active {
+        transform: translateY(2px);
+        box-shadow: 0 2px 4px -1px rgba(79, 70, 229, 0.2);
+    }
+
+    /* Info Alert sutil */
+    .info-box {
+        display: flex;
+        align-items: flex-start;
+        padding: 0.875rem;
+        background-color: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        border-radius: 8px;
+        margin-top: 1.5rem;
+    }
+
+    .info-box i {
+        color: #16a34a;
+        margin-right: 0.75rem;
+        margin-top: 0.15rem;
+    }
+
+    .info-box p {
+        margin: 0;
+        font-size: 0.85rem;
+        color: #166534;
+        line-height: 1.4;
+    }
+</style>
+<div class="exam-container">
+    <div class="exam-card">
+        <div class="exam-header">
+            <div class="exam-header-icon">
+                <i class="fas fa-file-signature"></i>
+            </div>
+            <h2 class="exam-title">Generar Práctica</h2>
+            <p class="exam-subtitle">Configura los parámetros para tu nueva sesión de estudio.</p>
+        </div>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="form-group">
+                <label for="universidad" class="form-label">
+                    <i class="fas fa-university"></i> Universidad
+                </label>
+                <select name="universidad" id="universidad" class="form-control" required>
+                    <option value="" disabled selected>Seleccione una institución...</option>
+                    {% for u in universidades %}
+                        <option value="{{ u.id }}">{{ u.nombre }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="curso" class="form-label">
+                    <i class="fas fa-book"></i> Curso
+                </label>
+                <select name="curso" id="curso" class="form-control" required disabled>
+                    <option value="" disabled selected>Primero seleccione una universidad...</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="temas" class="form-label">
+                    <i class="fas fa-list-ul"></i> Temas 
+                    <span class="form-label-hint">Ctrl/Cmd para múltiple selección</span>
+                </label>
+                <select name="temas" id="temas" multiple class="form-control" required disabled>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label">
+                    <i class="fas fa-layer-group"></i> Cantidad de preguntas
+                </label>
+                <div class="quantity-selector">
+                    <input type="radio" name="cantidad" id="cant_5" value="5" checked required>
+                    <label for="cant_5">5</label>
+
+                    <input type="radio" name="cantidad" id="cant_10" value="10">
+                    <label for="cant_10">10</label>
+
+                    <input type="radio" name="cantidad" id="cant_15" value="15">
+                    <label for="cant_15">15</label>
+
+                    <input type="radio" name="cantidad" id="cant_20" value="20">
+                    <label for="cant_20">20</label>
+                </div>
+            </div>
+
+            <div class="info-box">
+                <i class="fas fa-stopwatch"></i>
+                <p><strong>Control de tiempo automático:</strong> El sistema calculará y asignará exactamente 90 segundos por cada pregunta seleccionada.</p>
+            </div>
+
+            <button type="submit" class="btn-submit">
+                <i class="fas fa-play me-2"></i> Iniciar Práctica Ahora
+            </button>
+        </form>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectUni = document.getElementById('universidad');
+    const selectCurso = document.getElementById('curso');
+    const selectTema = document.getElementById('temas');
+
+    selectUni.addEventListener('change', function() {
+        const uniId = this.value;
+        
+        selectCurso.innerHTML = '<option value="">Cargando cursos...</option>';
+        selectTema.innerHTML = ''; 
+        selectCurso.disabled = true;
+        selectTema.disabled = true;
+
+        if (uniId) {
+            fetch(`{% url 'load_cursos_practica' %}?universidad_id=${uniId}`)
+                .then(r => r.json())
+                .then(data => {
+                    selectCurso.innerHTML = '<option value="" disabled selected>Seleccione el curso...</option>';
+                    
+                    if (data.length === 0) {
+                        selectCurso.innerHTML = '<option value="" disabled>No hay cursos con preguntas</option>';
+                    } else {
+                        data.forEach(item => {
+                            selectCurso.innerHTML += `<option value="${item.id}">${item.nombre}</option>`;
+                        });
+                        selectCurso.disabled = false;
+                    }
+                })
+                .catch(err => console.error("Error cargando cursos:", err));
+        }
+    });
+
+    selectCurso.addEventListener('change', function() {
+        const cursoId = this.value;
+        const uniId = selectUni.value; 
+
+        selectTema.innerHTML = '<option value="" disabled>Cargando temas...</option>';
+        selectTema.disabled = true;
+
+        if (cursoId && uniId) {
+            fetch(`{% url 'load_temas_practica' %}?curso_id=${cursoId}&universidad_id=${uniId}`)
+                .then(r => r.json())
+                .then(data => {
+                    selectTema.innerHTML = ''; 
+                    
+                    if (data.length === 0) {
+                        selectTema.innerHTML = '<option value="" disabled>No hay temas con preguntas</option>';
+                    } else {
+                        data.forEach(item => {
+                            selectTema.innerHTML += `<option value="${item.id}">${item.nombre}</option>`;
+                        });
+                        selectTema.disabled = false;
+                    }
+                })
+                .catch(err => console.error("Error cargando temas:", err));
+        }
+    });
+});
+</script>
+{% endblock %}

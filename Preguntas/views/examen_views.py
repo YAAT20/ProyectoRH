@@ -5,12 +5,15 @@ from django.contrib import messages
 from django.core.paginator import Paginator
 from django.utils import timezone
 
+from Preguntas.views.auth_views import role_required
+
 from ..models import Examen, Pregunta, ExamenPregunta, Tema, Universidad, Curso
 from .pregunta_views import combinar_documentos
 from django.db.models import OuterRef, Exists, Subquery
 from ..forms import FiltroPreguntaForm
 
 @staff_member_required
+@role_required('admin')
 def generar_examen(request):
     # Obtener filtros desde GET
     form = FiltroPreguntaForm(request.GET or None)
@@ -152,4 +155,4 @@ def generar_examen(request):
         'now': timezone.now(),
     }
 
-    return render(request, 'Preguntas/generar_examen.html', context)
+    return render(request, 'Preguntas/admin/generar_examen.html', context)

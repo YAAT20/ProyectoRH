@@ -370,3 +370,6 @@ class CargaMasivaPreguntaForm(forms.Form):
                 ).order_by('nombre')
             except (ValueError, TypeError):
                 pass
+
+class ExcelImportForm(forms.Form):
+    archivo_excel = forms.FileField(label="Selecciona el archivo Excel (.xlsx)")

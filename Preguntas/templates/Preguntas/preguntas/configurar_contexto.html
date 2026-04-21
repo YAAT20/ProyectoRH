@@ -1,0 +1,107 @@
+{% extends 'Preguntas/home.html' %}
+
+{% block content %}
+<div class="container py-5">
+    <div class="row justify-content-center">
+        <div class="col-md-6">
+            <div class="card shadow border-0">
+                <div class="card-header bg-dark text-white py-3">
+                    <h5 class="mb-0"><i class="fas fa-layer-group me-2"></i>Configurar Sesión de Carga</h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="POST">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Universidad</label>
+                            <select name="universidad" id="id_universidad" class="form-select" required>
+                                <option value="">Seleccione Universidad</option>
+                                {% for uni in universidades %}
+                                <option value="{{ uni.id }}">{{ uni.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Curso</label>
+                            <select name="curso" id="id_curso" class="form-select" required disabled>
+                                <option value="">Seleccione un curso...</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label fw-bold">Tema</label>
+                            <select name="tema" id="id_tema" class="form-select" required disabled>
+                                <option value="">Seleccione un tema...</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">Nivel</label>
+                            <select name="nivel" class="form-select">
+                                <option value="1">Básico</option>
+                                <option value="2">Intermedio</option>
+                                <option value="3">Avanzado</option>
+                            </select>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                Iniciar Carga Continua <i class="fas fa-play ms-2"></i>
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const selectUni = document.getElementById('id_universidad');
+    const selectCurso = document.getElementById('id_curso');
+    const selectTema = document.getElementById('id_tema');
+
+    // Universidad -> Cargar Cursos
+    selectUni.addEventListener('change', function() {
+        const uniId = this.value;
+        selectCurso.innerHTML = '<option value="">Cargando cursos...</option>';
+        selectTema.innerHTML = '<option value="">Seleccione un tema...</option>';
+        selectCurso.disabled = true;
+        selectTema.disabled = true;
+
+        if (uniId) {
+            fetch(`{% url 'ajax_load_cursos' %}?universidad_id=${uniId}`)
+                .then(r => r.json())
+                .then(data => {
+                    selectCurso.innerHTML = '<option value="">Seleccione Curso</option>';
+                    data.forEach(item => {
+                        selectCurso.innerHTML += `<option value="${item.id}">${item.nombre}</option>`;
+                    });
+                    selectCurso.disabled = false;
+                });
+        }
+    });
+
+    // Curso -> Cargar Temas
+    selectCurso.addEventListener('change', function() {
+        const cursoId = this.value;
+        selectTema.innerHTML = '<option value="">Cargando temas...</option>';
+        selectTema.disabled = true;
+
+        if (cursoId) {
+            fetch(`{% url 'ajax_load_temas' %}?curso_id=${cursoId}`)
+                .then(r => r.json())
+                .then(data => {
+                    selectTema.innerHTML = '<option value="">Seleccione Tema</option>';
+                    data.forEach(item => {
+                        selectTema.innerHTML += `<option value="${item.id}">${item.nombre}</option>`;
+                    });
+                    selectTema.disabled = false;
+                });
+        }
+    });
+});
+</script>
+{% endblock %}

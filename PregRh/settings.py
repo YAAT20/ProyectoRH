@@ -11,16 +11,22 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 # Seguridad
 SECRET_KEY = 'django-insecure-pk5o*^zd1+v(5=!us^pbch6+m4rd_7=mggueb^+1^$e!)1d8hx'
 DEBUG = True
-ALLOWED_HOSTS = ['*']
-
+ALLOWED_HOSTS = [
+    "*",
+    "banco.academiaroberthooke.com",
+    "office.academiaroberthooke.com",
+    "192.168.18.20",
+]
 # Redirecciones de login
 LOGIN_URL = '/accounts/login/'
 LOGIN_REDIRECT_URL = 'home'
 LOGOUT_REDIRECT_URL = 'login'
 
-ONLYOFFICE_API_URL = "http://localhost:8082"
-ONLYOFFICE_CALLBACK_URL = "http://host.docker.internal:8001/onlyoffice/callback/"
-ONLYOFFICE_JWT_SECRET = "CAJAMARCA2025"
+ONLYOFFICE_API_URL = "https://office.academiaroberthooke.com/web-apps/apps/api/documents/api.js"
+ONLYOFFICE_CALLBACK_URL = "https://banco.academiaroberthooke.com/onlyoffice/callback/"
+ONLYOFFICE_JWT_SECRET = "eeyuiJmUl1XI3FUz5gEf"
+SITE_DOMAIN = "https://banco.academiaroberthooke.com"
+FILE_UPLOAD_PERMISSIONS = 0o664
 
 # Aplicaciones
 INSTALLED_APPS = [
@@ -67,11 +73,11 @@ TEMPLATES = [
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
+        'ENGINE': 'django.db.backends.mysql',
         'NAME': 'db_banco_preguntas',
         'USER': 'root',
         'PASSWORD': 'tu_password_seguro_root',
-        'HOST': BASE_DIR / 'db.sqlite3',
+        'HOST': 'db_central',
         'PORT': '3306',
     }
 }
@@ -134,6 +140,11 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # --- SEGURIDAD HTTPS ---
 CSRF_TRUSTED_ORIGINS = [
     'https://banco.academiaroberthooke.com',
+    "https://office.academiaroberthooke.com",
+    'http://office.academiaroberthooke.com',
+    'http://192.168.18.20:8003',
 ]
+
+X_FRAME_OPTIONS = 'ALLOWALL'
 
 SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')

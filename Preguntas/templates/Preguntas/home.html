@@ -46,122 +46,131 @@
     </header>
 
     {% with request.path as current_path %}
-    <!-- Barra de navegación mejorada -->
-    <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top py-1">
-        <div class="container-fluid px-3">
-            <!-- Marca / Logo con mejor contraste -->
-            <a class="navbar-brand d-flex align-items-center py-1" href="{% url 'home' %}" aria-label="Inicio">
-                <i class="fas fa-book-open me-2" aria-hidden="true"></i>
-                <span class="fw-bold">Sistema de Preguntas</span>
-            </a>
+        <nav class="navbar navbar-expand-lg navbar-dark bg-primary shadow-sm sticky-top py-1">
+            <div class="container-fluid px-3">
+                <a class="navbar-brand d-flex align-items-center py-1" href="{% url 'home' %}" aria-label="Inicio">
+                    <i class="fas fa-book-open me-2"></i>
+                    <span class="fw-bold">Sistema de Preguntas</span>
+                </a>
 
-            <!-- Botón colapsable (móvil) con mejor accesibilidad -->
-            <button class="navbar-toggler py-1" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar"
-                aria-controls="mainNavbar" aria-expanded="false" aria-label="Alternar navegación">
-                <span class="navbar-toggler-icon"></span>
-            </button>
+                <button class="navbar-toggler py-1" type="button" data-bs-toggle="collapse" data-bs-target="#mainNavbar">
+                    <span class="navbar-toggler-icon"></span>
+                </button>
 
-            <!-- Menú de navegación reorganizado -->
-            <div class="collapse navbar-collapse" id="mainNavbar">
-                <!-- Menú principal -->
-                <ul class="navbar-nav me-auto mb-0">
-                    <li class="nav-item">
-                        <a class="nav-link py-2 px-3 {% if '/universidades/' in current_path %}active{% endif %}" 
-                        href="{% url 'universidad-list' %}">
-                        <i class="fas fa-university me-1"></i>
-                        <span class="d-none d-md-inline">Universidades</span>
-                        <span class="d-inline d-md-none">Univ.</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link py-2 px-3 {% if '/cursos/' in current_path %}active{% endif %}" 
-                        href="{% url 'curso-list' %}">
-                        <i class="fas fa-graduation-cap me-1"></i>
-                        <span>Cursos</span>
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link py-2 px-3 {% if '/temas/' in current_path %}active{% endif %}" 
-                        href="{% url 'tema-list' %}">
-                        <i class="fas fa-book me-1"></i>
-                        <span>Temas</span>
-                        </a>
-                    </li>
-                    
-                    {% if user.is_authenticated %}
-                    <li class="nav-item">
-                        {% if user.userprofile.role == 'supervisor' %}
-                            <a class="nav-link py-2 px-3 {% if request.resolver_match.url_name == 'pregunta_list_supervisor' %}active{% endif %}" 
-                            href="{% url 'pregunta_list_supervisor' %}">
-                                <i class="fas fa-search me-1"></i>
-                                <span class="d-none d-md-inline">Revisar Preguntas</span>
-                                <span class="d-inline d-md-none">Revisar</span>
+                <div class="collapse navbar-collapse" id="mainNavbar">
+                    <ul class="navbar-nav me-auto mb-0">
+                        
+                        {% if user.is_authenticated and user.userprofile.role != 'estudiante' %}
+                        <li class="nav-item">
+                            <a class="nav-link py-2 px-3 {% if '/universidades/' in current_path %}active{% endif %}" href="{% url 'universidad-list' %}">
+                                <i class="fas fa-university me-1"></i> Universidades
                             </a>
-                        {% else %}
-                            <a class="nav-link py-2 px-3 {% if request.resolver_match.url_name == 'pregunta-list' %}active{% endif %}" 
-                            href="{% url 'pregunta-list' %}">
-                                <i class="fas fa-question-circle me-1"></i>
-                                <span class="d-none d-md-inline">Mis Preguntas</span>
-                                <span class="d-inline d-md-none">Preguntas</span>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link py-2 px-3 {% if '/cursos/' in current_path %}active{% endif %}" href="{% url 'curso-list' %}">
+                                <i class="fas fa-graduation-cap me-1"></i> Cursos
                             </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link py-2 px-3 {% if '/temas/' in current_path %}active{% endif %}" href="{% url 'tema-list' %}">
+                                <i class="fas fa-book me-1"></i> Temas
+                            </a>
+                        </li>
                         {% endif %}
-                    </li>
-                    {% endif %}
-                </ul>
 
-                <!-- Área de usuario y administración -->
-                <ul class="navbar-nav ms-auto align-items-center mb-0">
-                    {% if user.is_authenticated and user.is_superuser %}
-                    <li class="nav-item dropdown me-2">
-                        <a class="nav-link dropdown-toggle btn btn-outline-light btn-sm py-1 px-2" href="#" id="adminDropdown" role="button"
-                            data-bs-toggle="dropdown" aria-expanded="false">
-                            <i class="fas fa-cog me-1"></i>
-                            <span class="d-none d-lg-inline">Administración</span>
-                            <span class="d-inline d-lg-none">Admin</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="adminDropdown">
-                            <li><h6 class="dropdown-header">Gestión de Contenido</h6></li>
-                            <li><a class="dropdown-item py-1" href="{% url 'generar-examen' %}"><i class="fas fa-file-alt me-2"></i>Generar Examen</a></li>
-                            <li><a class="dropdown-item py-1" href="{% url 'todas_las_preguntas' %}"><i class="fas fa-database me-2"></i>Todas las Preguntas</a></li>
-                            <li><a class="dropdown-item py-1" href="{% url 'register' %}"><i class="fas fa-user-plus me-2"></i>Crear Usuarios</a></li>
-                            <li><a class="dropdown-item py-1" href="{% url 'masivo_pregunta_create' %}"><i class="fas fa-file-import me-2"></i>Carga Masiva</a></li>
-                            <li><hr class="dropdown-divider my-1"></li>
-                            <li><a class="dropdown-item py-1" href="{% url 'admin-dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>Panel de Control</a></li>                       
-                        </ul>
-                    </li>
-                    {% endif %}
-
-                    {% if user.is_authenticated %}
-                    <li class="nav-item dropdown">
-                        <a class="nav-link dropdown-toggle d-flex align-items-center py-1" href="#" id="userDropdown"
-                            role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                            <span class="badge bg-light text-primary rounded-pill me-2 px-2 py-1">
-                                {{ user.username|slice:":1"|upper }}
-                            </span>
-                            <span class="d-none d-lg-inline">{{ user.username }}</span>
-                        </a>
-                        <ul class="dropdown-menu dropdown-menu-end shadow" aria-labelledby="userDropdown">
-                            <li>
-                                <form method="post" action="{% url 'logout' %}" class="d-inline">
-                                    {% csrf_token %}
-                                    <button type="submit" class="dropdown-item py-1">
-                                        <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
-                                    </button>
-                                </form>
+                        {% if user.is_authenticated and user.userprofile.role == 'estudiante' or user.is_superuser %}
+                            <li class="nav-item">
+                                <a class="nav-link py-2 px-3 fw-bold text-warning {% if request.resolver_match.url_name == 'crear_practica' %}active{% endif %}" 
+                                href="{% url 'crear_practica' %}">
+                                    <i class="fas fa-plus-circle me-1"></i> Generar examen
+                                </a>
                             </li>
-                        </ul>
-                    </li>
-                    {% else %}
-                    <li class="nav-item">
-                        <a class="nav-link py-2 px-3" href="{% url 'login' %}">
-                            <i class="fas fa-sign-in-alt me-1"></i>Iniciar Sesión
-                        </a>
-                    </li>
-                    {% endif %}
-                </ul>
+                            {% if ultima_practica %}
+                            <li class="nav-item">
+                                <a class="nav-link py-2 px-3 fw-bold text-success" 
+                                href="{% url 'resultado_practica' ultima_practica.uuid %}">
+                                    <i class="fas fa-chart-bar me-1"></i> Mi Último Resultado
+                                </a>
+                            </li>
+                            {% else %}
+                            <li class="nav-item">
+                                <span class="nav-link py-2 px-3 text-muted disabled">
+                                    <i class="fas fa-clipboard-check me-1"></i> Sin prácticas
+                                </span>
+                            </li>
+                            {% endif %}
+                        {% endif %}
+
+                        {% if user.is_authenticated %}
+                        <li class="nav-item">
+                            {% if user.userprofile.role == 'supervisor' %}
+                                <a class="nav-link py-2 px-3 {% if request.resolver_match.url_name == 'pregunta_list_supervisor' %}active{% endif %}" href="{% url 'pregunta_list_supervisor' %}">
+                                    <i class="fas fa-search me-1"></i> Revisar Preguntas
+                                </a>
+                            {% elif user.userprofile.role == 'user' or user.is_superuser %}
+                                <a class="nav-link py-2 px-3 {% if request.resolver_match.url_name == 'pregunta-list' %}active{% endif %}" href="{% url 'pregunta-list' %}">
+                                    <i class="fas fa-question-circle me-1"></i> Mis Preguntas
+                                </a>
+                            {% endif %}
+                        </li>
+                        {% endif %}
+                    </ul>
+
+                    <ul class="navbar-nav ms-auto align-items-center mb-0">
+                        {% if user.is_authenticated and user.is_superuser %}
+                        <li class="nav-item dropdown me-2">
+                            <a class="nav-link dropdown-toggle btn btn-outline-light btn-sm py-1 px-2 text-white" href="#" id="adminDropdown" data-bs-toggle="dropdown">
+                                <i class="fas fa-cog me-1"></i> Admin
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                <li><h6 class="dropdown-header">Gestión de Contenido</h6></li>
+                                <li><a class="dropdown-item" href="{% url 'generar-examen' %}"><i class="fas fa-file-alt me-2 text-muted"></i>Generar Examen</a></li>
+                                <li><a class="dropdown-item" href="{% url 'todas_las_preguntas' %}"><i class="fas fa-database me-2 text-muted"></i>Todas las Preguntas</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item" href="{% url 'register' %}"><i class="fas fa-user-plus me-2 text-muted"></i>Crear Usuarios</a></li>
+                                <li><a class="dropdown-item" href="{% url 'masivo_pregunta_create' %}"><i class="fas fa-file-import me-2 text-muted"></i>Carga Masiva</a></li>
+                                <li><hr class="dropdown-divider"></li>
+                                <li><a class="dropdown-item fw-bold" href="{% url 'admin-dashboard' %}"><i class="fas fa-tachometer-alt me-2"></i>Panel de Control</a></li>                       
+                            </ul>
+                        </li>
+                        {% endif %}
+
+                        {% if user.is_authenticated %}
+                        <li class="nav-item dropdown">
+                            <a class="nav-link dropdown-toggle d-flex align-items-center py-1" href="#" id="userDropdown" data-bs-toggle="dropdown">
+                                <span class="badge bg-white text-primary rounded-pill me-2 px-2 py-1">
+                                    {{ user.username|slice:":1"|upper }}
+                                </span>
+                                <span class="text-white fw-semibold small">{{ user.username }}</span>
+                            </a>
+                            <ul class="dropdown-menu dropdown-menu-end shadow">
+                                {% if user.is_superuser %}
+                                <li class="px-3 py-2 border-bottom">
+                                    <div class="small text-muted">Rol actual:</div>
+                                    <div class="fw-bold text-primary">{{ user.userprofile.role|capfirst }}</div>
+                                </li>
+                                {% endif %}
+                                <li>
+                                    <form method="post" action="{% url 'logout' %}">
+                                        {% csrf_token %}
+                                        <button type="submit" class="dropdown-item text-danger py-2">
+                                            <i class="fas fa-sign-out-alt me-2"></i>Cerrar Sesión
+                                        </button>
+                                    </form>
+                                </li>
+                            </ul>
+                        </li>
+                        {% else %}
+                        <li class="nav-item">
+                            <a class="nav-link py-2 px-3" href="{% url 'login' %}">
+                                <i class="fas fa-sign-in-alt me-1"></i>Iniciar Sesión
+                            </a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </div>
             </div>
-        </div>
-    </nav>
+        </nav>
     {% endwith %}
 
     <!-- Contenido principal -->
@@ -183,156 +192,202 @@
 
         {% block content %}
         <div class="row g-4 justify-content-center">
-
             <!-- Tarjetas comunes para todos los roles -->
-            <div class="col-12 col-md-6 col-lg-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInLeft">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-primary bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-university text-primary fa-3x"></i>
+            {% if user.is_authenticated and user.userprofile.role != 'estudiante' %}
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInLeft">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-primary bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-university text-primary fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Universidades</h3>
+                            <a href="{% url 'universidad-list' %}" class="btn btn-primary px-4">
+                                Gestionar
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Universidades</h3>
-                        <a href="{% url 'universidad-list' %}" class="btn btn-primary px-4">
-                            Gestionar
-                        </a>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-12 col-md-6 col-lg-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-success bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-graduation-cap text-success fa-3x"></i>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-success bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-graduation-cap text-success fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Cursos</h3>
+                            <a href="{% url 'curso-list' %}" class="btn btn-success px-4">
+                                Gestionar
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Cursos</h3>
-                        <a href="{% url 'curso-list' %}" class="btn btn-success px-4">
-                            Gestionar
-                        </a>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-12 col-md-6 col-lg-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInRight">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-info bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-book text-info fa-3x"></i>
+                <div class="col-12 col-md-6 col-lg-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInRight">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-info bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-book text-info fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Temas</h3>
+                            <a href="{% url 'tema-list' %}" class="btn btn-info px-4">
+                                Gestionar
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Temas</h3>
-                        <a href="{% url 'tema-list' %}" class="btn btn-info px-4">
-                            Gestionar
-                        </a>
                     </div>
                 </div>
-            </div>
+            {% endif %}
 
             <!-- Tarjeta específica para usuarios normales -->
             {% if user.is_authenticated and user.userprofile.role == 'user' %}
-            <div class="col-12 col-md-6 col-lg-4 mt-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-warning bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-question-circle text-warning fa-3x"></i>
+                <div class="col-12 col-md-6 col-lg-4 mt-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-warning bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-question-circle text-warning fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Mis Preguntas</h3>
+                            <a href="{% url 'pregunta-list' %}" class="btn btn-warning px-4">
+                                Gestionar
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Mis Preguntas</h3>
-                        <a href="{% url 'pregunta-list' %}" class="btn btn-warning px-4">
-                            Gestionar
-                        </a>
                     </div>
                 </div>
-            </div>
             {% endif %}
 
             <!-- Tarjeta específica para supervisores -->
             {% if user.is_authenticated and user.userprofile.role == 'supervisor' or user.is_superuser %}
-            <div class="col-12 col-md-6 col-lg-4 mt-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-purple bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-check-double text-purple fa-3x"></i>
+                <div class="col-12 col-md-6 col-lg-4 mt-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-purple bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-check-double text-purple fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Revisar Preguntas</h3>
+                            <a href="{% url 'pregunta_list_supervisor' %}" class="btn btn-purple px-4">
+                                Supervisar
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Revisar Preguntas</h3>
-                        <a href="{% url 'pregunta_list_supervisor' %}" class="btn btn-purple px-4">
-                            Supervisar
-                        </a>
                     </div>
                 </div>
-            </div>
             {% endif %}
 
             <!-- Tarjetas específicas para administradores -->
             {% if user.is_authenticated and user.is_superuser %}
-            <div class="col-12 col-md-6 col-lg-4 mt-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInLeft">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-warning bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-question-circle text-warning fa-3x"></i>
+                <div class="col-12 col-md-6 col-lg-4 mt-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInLeft">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-warning bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-question-circle text-warning fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Preguntas</h3>
+                            <a href="{% url 'pregunta-list' %}" class="btn btn-warning px-4">
+                                Gestionar
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Preguntas</h3>
-                        <a href="{% url 'pregunta-list' %}" class="btn btn-warning px-4">
-                            Gestionar
-                        </a>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-12 col-md-6 col-lg-4 mt-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-secondary bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-user-plus text-secondary fa-3x"></i>
+                <div class="col-12 col-md-6 col-lg-4 mt-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-secondary bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-user-plus text-secondary fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Registrar Usuarios</h3>
+                            <a href="{% url 'register' %}" class="btn btn-secondary px-4">
+                                Registrar
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Registrar Usuarios</h3>
-                        <a href="{% url 'register' %}" class="btn btn-secondary px-4">
-                            Registrar
-                        </a>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-12 col-md-6 col-lg-4 mt-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInRight">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-danger bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-tachometer-alt text-danger fa-3x"></i>
+                <div class="col-12 col-md-6 col-lg-4 mt-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInRight">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-danger bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-tachometer-alt text-danger fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Panel Admin</h3>
+                            <a href="{% url 'admin-dashboard' %}" class="btn btn-danger px-4">
+                                Administrar
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Panel Admin</h3>
-                        <a href="{% url 'admin-dashboard' %}" class="btn btn-danger px-4">
-                            Administrar
-                        </a>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-12 col-md-6 col-lg-4 mt-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInLeft">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-success bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-file-import text-success fa-3x"></i>
+                <div class="col-12 col-md-6 col-lg-4 mt-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInLeft">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-success bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-file-import text-success fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Carga Masiva</h3>
+                            <a href="{% url 'masivo_pregunta_create' %}" class="btn btn-success px-4">
+                                Importar
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Carga Masiva</h3>
-                        <a href="{% url 'masivo_pregunta_create' %}" class="btn btn-success px-4">
-                            Importar
-                        </a>
                     </div>
                 </div>
-            </div>
 
-            <div class="col-12 col-md-6 col-lg-4 mt-4">
-                <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
-                    <div class="card-body text-center p-4">
-                        <div class="icon-container bg-info bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
-                            <i class="fas fa-file-alt text-info fa-3x"></i>
+                <div class="col-12 col-md-6 col-lg-4 mt-4">
+                    <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp">
+                        <div class="card-body text-center p-4">
+                            <div class="icon-container bg-info bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block">
+                                <i class="fas fa-file-alt text-info fa-3x"></i>
+                            </div>
+                            <h3 class="card-title h5 mb-3">Generar Examen</h3>
+                            <a href="{% url 'generar-examen' %}" class="btn btn-info px-4">
+                                Crear
+                            </a>
                         </div>
-                        <h3 class="card-title h5 mb-3">Generar Examen</h3>
-                        <a href="{% url 'generar-examen' %}" class="btn btn-info px-4">
-                            Crear
-                        </a>
                     </div>
                 </div>
-            </div>
             {% endif %}
+
+            {% if user.is_authenticated and user.userprofile.role == 'estudiante' or user.is_superuser %}
+                <div class="row g-4 justify-content-center mt-2">
+                    <div class="col-12 col-md-6 col-lg-4 mt-4">
+                        <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp hover-card">
+                            <div class="card-body text-center p-4 d-flex flex-column">
+                                <div class="icon-container bg-primary bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block mx-auto">
+                                    <i class="fas fa-file-signature text-primary fa-3x"></i>
+                                </div>
+                                <h3 class="card-title h5 mb-2">Generar Examen</h3>
+                                <p class="text-muted small mb-4 flex-grow-1">Configura y crea una nueva evaluación a medida.</p>
+                                <a href="{% url 'crear_practica' %}" class="btn btn-primary px-4 mt-auto rounded-pill fw-semibold">
+                                    <i class="fas fa-plus me-2"></i> Crear Examen
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+
+                    {% if ultima_practica %}
+                    <div class="col-12 col-md-6 col-lg-4 mt-4">
+                        <div class="card h-100 shadow-sm border-0 animate__animated animate__fadeInUp hover-card">
+                            <div class="card-body text-center p-4 d-flex flex-column">
+                                <div class="icon-container bg-success bg-opacity-10 mb-4 p-3 rounded-circle d-inline-block mx-auto">
+                                    <i class="fas fa-clipboard-check text-success fa-3x"></i>
+                                </div>
+                                <h3 class="card-title h5 mb-2">Mi Último Resultado</h3>
+                                <p class="text-muted small mb-4 flex-grow-1">Revisa las estadísticas de tu evaluación más reciente.</p>
+                                <a href="{% url 'resultado_practica' ultima_practica.uuid %}" class="btn btn-outline-success px-4 mt-auto rounded-pill fw-semibold">
+                                    <i class="fas fa-chart-bar me-2"></i> Ver Estadísticas
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    {% else %}
+                    <div class="col-12 col-md-6 col-lg-4 mt-4">
+                        <div class="card h-100 shadow-sm border-0 bg-light">
+                            <div class="card-body text-center p-4">
+                                <p class="text-muted italic">Aún no has completado ninguna práctica.</p>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            {% endif %}
+
         </div>
         {% endblock %}
     </main>

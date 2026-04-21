@@ -80,3 +80,35 @@ def load_temas_creacion(request):
     
     data = [{'id': t.id, 'nombre': t.nombre} for t in temas]
     return JsonResponse(data, safe=False)
+
+@login_required
+def load_cursos_practica(request):
+    universidad_id = request.GET.get('universidad_id')
+    if not universidad_id:
+        return JsonResponse([], safe=False)
+    
+    # Filtra solo los cursos que tengan AL MENOS UNA pregunta en esta universidad
+    cursos = Curso.objects.filter(
+        pregunta__universidad_id=universidad_id
+    ).distinct().order_by('nombre')
+    
+    data = [{'id': c.id, 'nombre': c.nombre} for c in cursos]
+    return JsonResponse(data, safe=False)
+
+@login_required
+def load_temas_practica(request):
+    curso_id = request.GET.get('curso_id')
+    universidad_id = request.GET.get('universidad_id') # ¡Nuevo parámetro!
+    
+    if not curso_id or not universidad_id:
+        return JsonResponse([], safe=False)
+    
+    # Filtra solo los temas que pertenezcan a este curso Y que 
+    # tengan AL MENOS UNA pregunta en esta universidad específica
+    temas = Tema.objects.filter(
+        curso_id=curso_id,
+        pregunta__universidad_id=universidad_id
+    ).distinct().order_by('nombre')
+    
+    data = [{'id': t.id, 'nombre': t.nombre} for t in temas]
+    return JsonResponse(data, safe=False)

@@ -8,7 +8,7 @@ from .mixins import AdminRequiredMixin, SuccessMessageMixin, ExcludeSupervisorMi
 # CRUD Cursos
 class CursoListView(LoginRequiredMixin, ListView):
     model = Curso
-    template_name = 'Preguntas/curso_list.html'
+    template_name = 'Preguntas/uni_curso_tema/curso_list.html'
     context_object_name = 'cursos'
 
     def get_queryset(self):
@@ -29,7 +29,7 @@ class CursoListView(LoginRequiredMixin, ListView):
 class CursoCreateView(ExcludeSupervisorMixin, LoginRequiredMixin, SuccessMessageMixin, CreateView):
     model = Curso
     form_class = CursoForm
-    template_name = 'Preguntas/curso_form.html'
+    template_name = 'Preguntas/uni_curso_tema/curso_form.html'
     success_url = reverse_lazy('curso-list')
     success_message = 'Curso creado exitosamente.'
 
@@ -43,12 +43,12 @@ class CursoCreateView(ExcludeSupervisorMixin, LoginRequiredMixin, SuccessMessage
 class CursoUpdateView(ExcludeSupervisorMixin, LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Curso
     form_class = CursoForm
-    template_name = 'Preguntas/curso_form.html'
+    template_name = 'Preguntas/uni_curso_tema/curso_form.html'
     success_url = reverse_lazy('curso-list')
     success_message = 'Curso actualizado exitosamente.'
 
 class CursoDeleteView(ExcludeSupervisorMixin, AdminRequiredMixin, SuccessMessageMixin, DeleteView):
     model = Curso
-    template_name = 'Preguntas/curso_confirm_delete.html'
+    template_name = 'Preguntas/uni_curso_tema/curso_confirm_delete.html'
     success_url = reverse_lazy('curso-list')
     success_message = 'Curso eliminado exitosamente.'

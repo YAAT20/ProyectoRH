@@ -8,3 +8,4 @@ from .admin_views import *
 from .ajax_views import *
 from .general_views import *
 from .carga_masiva import *
+from .practicas import *

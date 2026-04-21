@@ -120,14 +120,14 @@
                 <!-- Listado de Preguntas -->
                 <form method="post" id="examenForm">
                     {% csrf_token %}
-                    <div class="table-responsive mt-4" style="overflow-x: auto;">
-                        <table class="table table-striped table-bordered table-hover align-middle" style="width: 100%;">
+                    <div class="table-responsive" style="max-width: 100%; overflow-x: auto;">
+                        <table class="table table-striped table-bordered table-hover align-middle">
                             <caption class="visually-hidden">
                                 Listado de {{ preguntas.count }} preguntas disponibles
                             </caption>
                             <thead class="table-dark sticky-top">
                                 <tr>
-                                    <th scope="col" class="text-center" style="width: 40px;">
+                                    <th scope="col" class="text-center" style="width: 30px;">
                                         <div class="form-check">
                                             <input type="checkbox" id="selectAll" class="form-check-input"
                                                 aria-label="Seleccionar todas las preguntas">
@@ -135,30 +135,30 @@
                                         </div>
                                     </th>
                                     <th scope="col" style="width: 100px;" class="ps-3">
-                                        <span class="fw-bold"><i class="fas fa-hashtag me-1"></i> Código</span>
+                                        <span class="fw-bold"><i></i> Código</span>
                                     </th>
                                     <th scope="col" style="width: 100px;" class="ps-3">
                                         <span class="fw-bold"><i class="fas fa-clock me-1"></i> Estado</span>
                                     </th>
-                                    <th scope="col" style="width: 150px;" class="ps-3">
+                                    <th scope="col" style="width: 100px;" class="ps-3">
                                         <span class="fw-bold"><i class="fas fa-university me-1"></i> Universidad</span>
                                     </th>
                                     <th scope="col" style="width: 100px;" class="ps-3">
                                         <span class="fw-bold"><i class="fas fa-book me-1"></i> Curso</span>
                                     </th>
-                                    <th scope="col" style="width: 150px;" class="ps-3">
+                                    <th scope="col" style="width: 100px;" class="ps-3">
                                         <span class="fw-bold"><i class="fas fa-question-circle me-1"></i> Tema</span>
                                     </th>
                                     <th scope="col" style="width: 100px;" class="ps-3">
                                         <span class="fw-bold"><i class="fas fa-layer-group me-1"></i> Nivel</span>
                                     </th>
-                                    <th scope="col" style="width: 110px;" class="text-center">
+                                    <th scope="col" style="width: 100px;" class="text-center">
                                         <span class="fw-bold"><i class="fas fa-calendar me-1"></i> Fecha</span>
                                     </th>
-                                    <th scope="col" style="width: 120px;" class="text-center">
+                                    <th scope="col" style="width: 100px;" class="text-center">
                                         <span class="fw-bold"><i class="fas fa-cogs me-1"></i> Acciones</span>
                                     </th>
-                                    <th scope="col" style="width: 120px;" class="text-center">
+                                    <th scope="col" style="width: 100px;" class="text-center">
                                         <span class="fw-bold"><i class="fas fa-check-circle me-1"></i> Solución</span>
                                     </th>
                                 </tr>
@@ -205,21 +205,21 @@
                                     </td>
                                     <!-- Universidad -->
                                     <td class="align-middle ps-3">
-                                        <div class="fw-bold text-truncate" title="{{ pregunta.universidad.nombre }}">
+                                        <div class="fw-bold text-truncate-universidad" title="{{ pregunta.universidad.nombre }}">
                                             {{ pregunta.universidad.nombre }}
                                         </div>
                                         <small class="text-muted fw-normal">ID: {{ pregunta.universidad.id }}</small>
                                     </td>
                                     <!-- Curso -->
                                     <td class="align-middle ps-3">
-                                        <div class="fw-bold text-truncate" title="{{ pregunta.curso.nombre }}">
+                                        <div class="fw-bold" title="{{ pregunta.curso.nombre }}">
                                             {{ pregunta.curso.nombre }}
                                         </div>
                                         <small class="text-muted fw-normal">ID: {{ pregunta.curso.id }}</small>
                                     </td>
                                     <!-- Tema -->
                                     <td class="align-middle ps-3">
-                                        <div class="fw-bold text-truncate" title="{{ pregunta.tema.nombre }}">
+                                        <div class="fw-bold" title="{{ pregunta.tema.nombre }}">
                                             {{ pregunta.tema.nombre }}
                                         </div>
                                         <small class="text-muted fw-normal">ID: {{ pregunta.tema.id }}</small>
@@ -254,11 +254,7 @@
                                                     {% with tiempo_restante=pregunta.fecha_expiracion|timeuntil:now %}
                                                     {% if "hour" in tiempo_restante %}
                                                     {{ tiempo_restante|slice:":2"|cut:" " }} H
-                                                    {% if "minute" in tiempo_restante %}
-                                                    {{ tiempo_restante|slice:"9:11"|cut:" " }} m
-                                                    {% endif %}
                                                     {% else %}
-                                                    {{ tiempo_restante|slice:":2"|cut:" " }} m
                                                     {% endif %}
                                                     {% endwith %}
                                                 </span>
@@ -266,7 +262,6 @@
                                             {% else %}
                                             <span class="text-danger"
                                                 title="Expirada: {{ pregunta.fecha_expiracion|date:'d M Y H:i' }}">
-                                                <i class="fas fa-clock me-1" aria-hidden="true"></i>
                                                 Expirada
                                             </span>
                                             {% endif %}
@@ -961,11 +956,8 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
     // Configurar todos los formularios iniciales
-    const forms = document.querySelectorAll('.form-update-rapida');
-    console.log('Formularios encontrados:', forms.length); // Para depuración
-    
+    const forms = document.querySelectorAll('.form-update-rapida');    
     forms.forEach((form, index) => {
-        console.log(`Configurando formulario ${index + 1}`, form); // Para depuración
         setupFormListener(form);
     });
     // Observador de mutaciones para nuevos elementos dinámicos

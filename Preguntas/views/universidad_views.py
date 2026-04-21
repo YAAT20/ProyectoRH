@@ -7,7 +7,7 @@ from .mixins import AdminRequiredMixin, SuccessMessageMixin, ExcludeSupervisorMi
 
 class UniversidadListView(LoginRequiredMixin, ListView):
     model = Universidad
-    template_name = 'Preguntas/universidad_list.html'
+    template_name = 'Preguntas/uni_curso_tema/universidad_list.html'
     context_object_name = 'universidades'
 
 class UniversidadCreateView(
@@ -15,7 +15,7 @@ class UniversidadCreateView(
 ):
     model = Universidad
     form_class = UniversidadForm
-    template_name = 'Preguntas/universidad_form.html'
+    template_name = 'Preguntas/uni_curso_tema/universidad_form.html'
     success_url = reverse_lazy('universidad-list')
     success_message = 'Universidad creada exitosamente.'
 
@@ -24,7 +24,7 @@ class UniversidadUpdateView(
 ):
     model = Universidad
     form_class = UniversidadForm
-    template_name = 'Preguntas/universidad_form.html'
+    template_name = 'Preguntas/uni_curso_tema/universidad_form.html'
     success_url = reverse_lazy('universidad-list')
     success_message = 'Universidad actualizada exitosamente.'
 
@@ -32,6 +32,6 @@ class UniversidadDeleteView(
     ExcludeSupervisorMixin, AdminRequiredMixin, SuccessMessageMixin, DeleteView
 ):
     model = Universidad
-    template_name = 'Preguntas/universidad_confirm_delete.html'
+    template_name = 'Preguntas/uni_curso_tema/universidad_confirm_delete.html'
     success_url = reverse_lazy('universidad-list')
     success_message = 'Universidad eliminada exitosamente.'

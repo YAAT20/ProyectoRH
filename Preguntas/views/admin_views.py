@@ -7,11 +7,12 @@ from django.contrib.auth.decorators import login_required
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.http import HttpResponse
-from .auth_views import exclude_supervisor
+from .auth_views import exclude_supervisor, role_required
 from django.views.decorators.http import require_POST
 
 @exclude_supervisor
 @staff_member_required
+@role_required('admin')
 def admin_dashboard(request):
     # Filtros
     filtros = {}
@@ -21,10 +22,10 @@ def admin_dashboard(request):
             filtros[campo + '__id'] = valor
     
     # Preguntas filtradas y ordenadas
-    preguntas_qs = Pregunta.objects.filter(**filtros).order_by('-fecha_creacion')
+    preguntas_qs = Pregunta.objects.filter(**filtros).order_by('curso__nombre')
     
     # Paginación
-    paginator = Paginator(preguntas_qs, 20)
+    paginator = Paginator(preguntas_qs, 100)
     page_number = request.GET.get('page')
     preguntas_recientes = paginator.get_page(page_number)
     
@@ -55,12 +56,13 @@ def admin_dashboard(request):
     for campo in ['tema', 'universidad', 'curso']:
         context[f'{campo}_filter'] = request.GET.get(campo)
     
-    return render(request, 'Preguntas/admin_dashboard.html', context)
+    return render(request, 'Preguntas/admin/admin_dashboard.html', context)
 
 
 @login_required
 @staff_member_required
 @require_POST
+@role_required('admin')
 def change_user_role(request, username):
     user = get_object_or_404(User, username=username)
     user_profile = get_object_or_404(UserProfile, user=user)
@@ -77,6 +79,7 @@ def change_user_role(request, username):
 
 @login_required
 @staff_member_required
+@role_required('admin')
 def toggle_user_status(request, username):
     user = get_object_or_404(User, username=username)
     user_profile = get_object_or_404(UserProfile, user=user)
@@ -98,6 +101,7 @@ def toggle_user_status(request, username):
 
 @exclude_supervisor
 @login_required
+@role_required('admin')
 def export_preguntas_recientes(request):
     """
     Exporta en formato CSV las preguntas recientes, optimizando las consultas y el manejo del archivo.

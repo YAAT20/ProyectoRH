@@ -8,7 +8,7 @@ from .mixins import AdminRequiredMixin, SuccessMessageMixin, ExcludeSupervisorMi
 #CRUDS DE TEMAS
 class TemaListView(LoginRequiredMixin, ListView):
     model = Tema
-    template_name = 'Preguntas/tema_list.html'
+    template_name = 'Preguntas/uni_curso_tema/tema_list.html'
     context_object_name = 'temas'
 
     def get_queryset(self):
@@ -38,7 +38,7 @@ class TemaListView(LoginRequiredMixin, ListView):
 class TemaCreateView(ExcludeSupervisorMixin, LoginRequiredMixin, SuccessMessageMixin, CreateView):
     model = Tema
     form_class = TemaForm
-    template_name = 'Preguntas/tema_form.html'
+    template_name = 'Preguntas/uni_curso_tema/tema_form.html'
     success_url = reverse_lazy('tema-list')
     success_message = 'Tema creado exitosamente.'
 
@@ -52,12 +52,12 @@ class TemaCreateView(ExcludeSupervisorMixin, LoginRequiredMixin, SuccessMessageM
 class TemaUpdateView(ExcludeSupervisorMixin, LoginRequiredMixin, SuccessMessageMixin, UpdateView):
     model = Tema
     form_class = TemaForm
-    template_name = 'Preguntas/tema_form.html'
+    template_name = 'Preguntas/uni_curso_tema/tema_form.html'
     success_url = reverse_lazy('tema-list')
     success_message = 'Tema actualizado exitosamente.'
 
 class TemaDeleteView(ExcludeSupervisorMixin, AdminRequiredMixin, SuccessMessageMixin, DeleteView):
     model = Tema
-    template_name = 'Preguntas/tema_confirm_delete.html'
+    template_name = 'Preguntas/uni_curso_tema/tema_confirm_delete.html'
     success_url = reverse_lazy('tema-list')
     success_message = 'Tema eliminado exitosamente.'

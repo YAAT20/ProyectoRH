@@ -10,7 +10,7 @@ from django.contrib import messages
 from django.shortcuts import render, redirect
 from django.core.files import File
 from ..forms import *
-from .auth_views import exclude_supervisor
+from .auth_views import exclude_supervisor, role_required
 from ..models import Pregunta, UserProfile
 from docx.oxml.ns import qn
 from copy import deepcopy
@@ -38,18 +38,14 @@ def copy_related_parts(new_doc, original_doc, block_elements):
     Copia las partes relacionadas (imágenes, gráficos) que son referenciadas
     en los elementos del bloque al nuevo documento.
     """
-    # Obtener todas las relaciones del documento original
     original_rels = original_doc.part.rels
     
-    # Identificar las relaciones utilizadas en el bloque
     used_rIds = set()
     for element in block_elements:
-        # Buscar referencias a relaciones en el elemento
         for rel_attr in ['r:embed', 'r:link', 'v:imagedata']:
             for el in element.xpath(f'.//@{rel_attr}'):
                 used_rIds.add(el)
     
-    # Copiar las relaciones utilizadas al nuevo documento
     for rId in used_rIds:
         if rId in original_rels:
             rel = original_rels[rId]
@@ -73,16 +69,12 @@ def create_exact_copy_docx(original_doc, block_elements):
     incluyendo imágenes, tablas, ecuaciones, con sus formatos originales.
     Versión corregida del error 'element has no setter'.
     """
-    # Crear un documento completamente nuevo
     new_doc = Document()
     
-    # 1. Copiar los estilos del documento original (manera correcta)
     for style in original_doc.styles:
         try:
-            # Solo copiamos los estilos que no existen en el nuevo documento
             if style.name not in new_doc.styles:
                 new_style = new_doc.styles.add_style(style.name, style.type)
-                # Copiar propiedades básicas del estilo
                 if style.font:
                     new_style.font.name = style.font.name
                     new_style.font.size = style.font.size
@@ -97,10 +89,8 @@ def create_exact_copy_docx(original_doc, block_elements):
             print(f"Warning: No se pudo copiar el estilo {style.name}: {str(e)}")
             continue
     
-    # 2. Configurar propiedades del documento
     new_doc._element.body.clear_content()
     
-    # 3. Copiar las secciones (configuración de página)
     if original_doc.sections:
         new_sect = new_doc.sections[0]
         orig_sect = original_doc.sections[0]
@@ -115,12 +105,10 @@ def create_exact_copy_docx(original_doc, block_elements):
         new_sect.header_distance = orig_sect.header_distance
         new_sect.footer_distance = orig_sect.footer_distance
     
-    # Copiar elementos del bloque
     new_body = new_doc._element.body
     for element in block_elements:
         new_body.append(deepcopy(element))
     
-    # Copiar partes relacionadas (imágenes, gráficos)
     copy_related_parts(new_doc, original_doc, block_elements)
     
     return new_doc
@@ -131,16 +119,13 @@ def detectar_clave_resaltada(elements):
     Retorna 'A', 'B', 'C', 'D' o 'E' si lo encuentra.
     """
     for element in elements:
-        # Buscamos en todos los 'runs' (fragmentos de texto) del párrafo/elemento
         runs = element.xpath('.//w:r')
         for r in runs:
             rPr = r.find(qn('w:rPr'))
             if rPr is not None:
                 highlight = rPr.find(qn('w:highlight'))
-                # Verificamos si el color de resaltado es 'yellow'
                 if highlight is not None and highlight.get(qn('w:val')) == 'yellow':
                     texto = "".join(t.text for t in r.xpath('.//w:t') if t.text).strip().upper()
-                    # Extraer la letra (ejemplo: de "A)" extrae "A")
                     for letra in ['A', 'B', 'C', 'D', 'E']:
                         if letra in texto:
                             return letra
@@ -151,6 +136,7 @@ logger = logging.getLogger(__name__)
 @login_required
 @staff_member_required
 @exclude_supervisor
+@role_required('admin')
 def masivo_pregunta_create(request):
     if request.method == 'POST':
         form = CargaMasivaPreguntaForm(request.POST, request.FILES)
@@ -160,7 +146,6 @@ def masivo_pregunta_create(request):
                 archivo_bytes = archivo_word.read()
                 user_profile = UserProfile.objects.get(user=request.user)
                 
-                # 1. SEPARACIÓN INICIAL POR BLOQUES
                 with temp_docx_file(archivo_bytes) as temp_path:
                     doc = Document(temp_path)
                     all_blocks, current_block = [], []
@@ -175,7 +160,6 @@ def masivo_pregunta_create(request):
                             current_block.append(element)
                     if current_block: all_blocks.append(current_block)
 
-                # 2. PROCESAMIENTO DE BLOQUES
                 for i, block in enumerate(all_blocks, start=1):
                     clave = detectar_clave_resaltada(block) or form.cleaned_data['respuesta_default']
                     enunciado_els, solucion_els = [], []
@@ -188,17 +172,14 @@ def masivo_pregunta_create(request):
                             continue
                         (solucion_els if encontrado_sol else enunciado_els).append(el)
 
-                    # Generar los archivos en memoria
                     with temp_docx_file(archivo_bytes) as temp_path:
                         orig_doc = Document(temp_path)
                         
-                        # Crear Enunciado
                         doc_p = create_exact_copy_docx(orig_doc, enunciado_els)
                         buf_p = io.BytesIO()
                         doc_p.save(buf_p)
                         buf_p.seek(0)
 
-                        # Crear Solución si existe
                         buf_s = None
                         if encontrado_sol and solucion_els:
                             doc_s = create_exact_copy_docx(orig_doc, solucion_els)
@@ -206,7 +187,6 @@ def masivo_pregunta_create(request):
                             doc_s.save(buf_s)
                             buf_s.seek(0)
 
-                    # 3. PERSISTENCIA EN BASE DE DATOS
                     preg = Pregunta(
                         universidad=form.cleaned_data['universidad'],
                         curso=form.cleaned_data['curso'],
@@ -216,20 +196,16 @@ def masivo_pregunta_create(request):
                         usuario=user_profile,
                         tiene_solucion=encontrado_sol
                     )
-                    # Guardamos primero para que el modelo genere el 'nombre' autogenerado
                     preg.save() 
                     
-                    # Guardamos los archivos físicos usando el nombre autogenerado
                     if buf_p:
                         preg.contenido.save(f"P_{preg.nombre}.docx", File(buf_p), save=False)
                     
                     if buf_s:
                         preg.solucion_archivo.save(f"S_{preg.nombre}.docx", File(buf_s), save=False)
                     
-                    # Guardado final para registrar las rutas de los archivos
                     preg.save()
                     
-                    # Limpieza de buffers
                     buf_p.close()
                     if buf_s: buf_s.close()
 
@@ -240,8 +216,6 @@ def masivo_pregunta_create(request):
                 logger.error(f"Error masivo crítico: {e}", exc_info=True)
                 messages.error(request, f"Error durante el procesamiento: {e}")
         
-        # Si el formulario no es válido, regresamos al template con los errores
-        return render(request, 'Preguntas/masivo_pregunta_form.html', {'form': form})
+        return render(request, 'Preguntas/preguntas/masivo_pregunta_form.html', {'form': form})
 
-    # GET: Carga inicial del formulario
-    return render(request, 'Preguntas/masivo_pregunta_form.html', {'form': CargaMasivaPreguntaForm()})
+    return render(request, 'Preguntas/preguntas/masivo_pregunta_form.html', {'form': CargaMasivaPreguntaForm()})

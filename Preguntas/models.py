@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.core.validators import FileExtensionValidator 
 from django.utils.text import slugify
@@ -35,8 +36,9 @@ class UserProfile(models.Model):
         ('supervisor', 'Supervisor'),
         ('admin', 'Admin'),
         ('user', 'User'),
+        ('estudiante', 'Estudiante'),
     ]
-    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='user')
+    role = models.CharField(max_length=20, choices=ROLE_CHOICES, default='estudiante')
     def __str__(self):
         return self.user.username
 
@@ -128,3 +130,35 @@ class ExamenPregunta(models.Model):
 
     def __str__(self):
         return f"{self.examen.nombre} - {self.pregunta.nombre}"
+
+class Practica(models.Model):
+    usuario = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    curso = models.ForeignKey(Curso, on_delete=models.CASCADE)
+    temas = models.ManyToManyField(Tema)
+    uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
+    cantidad_preguntas = models.PositiveIntegerField()
+    tiempo_minutos = models.PositiveIntegerField()
+    aciertos = models.PositiveIntegerField(default=0)
+    errores = models.PositiveIntegerField(default=0)
+    blancos = models.PositiveIntegerField(default=0)
+    fecha_inicio = models.DateTimeField(auto_now_add=True)
+    fecha_fin = models.DateTimeField(null=True, blank=True)
+
+    finalizado = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"Practica {self.id}"
+    
+class PracticaPregunta(models.Model):
+    practica = models.ForeignKey(Practica, on_delete=models.CASCADE, related_name='preguntas')
+    pregunta = models.ForeignKey(Pregunta, on_delete=models.CASCADE)
+
+    respuesta_alumno = models.CharField(
+        max_length=1,
+        choices=Pregunta.RESPUESTA_CHOICES,
+        null=True,
+        blank=True
+    )
+
+    class Meta:
+        unique_together = ('practica', 'pregunta')

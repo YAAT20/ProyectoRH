@@ -3,7 +3,6 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.http import HttpResponseForbidden
 
-
 class AdminRequiredMixin(LoginRequiredMixin, UserPassesTestMixin):    
     def test_func(self):
         return self.request.user.is_staff  # Solo administradores pueden acceder

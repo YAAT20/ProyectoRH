@@ -52,11 +52,24 @@ urlpatterns = [
     path('ajax/load-temas/',  views.load_temas,  name='load_temas'),
     path('ajax/load-cursos-creacion/', views.load_cursos_creacion, name='load_cursos_creacion'),
     path('ajax/load-temas-creacion/', views.load_temas_creacion, name='load_temas_creacion'),
+    path('ajax/load-cursos-practica/', views.load_cursos_practica, name='load_cursos_practica'),
+    path('ajax/load-temas-practica/', views.load_temas_practica, name='load_temas_practica'),
     
     #integración OnlyOffice
-    path('pregunta/nuevaonline/', views.pregunta_create_online, name='pregunta_create_online'),
-    path('pregunta/editar/<int:pregunta_id>/', views.pregunta_edit_online, name='pregunta_edit_online'),
     path('onlyoffice/callback/', views.onlyoffice_callback, name='onlyoffice_callback'),
     path('load-cursos-creacion/', views.load_cursos_creacion, name='ajax_load_cursos'),
     path('load-temas-creacion/', views.load_temas_creacion, name='ajax_load_temas'),
+    path('preguntas/configurar-contexto/', views.configurar_contexto, name='configurar_contexto'),
+    path('preguntas/crear-continuo/', views.flujo_carga_continua, name='flujo_carga_continua'),
+    path('preguntas/agregar-solucion-ajax/<int:pregunta_id>/', views.agregar_solucion_ajax, name='agregar_solucion_ajax'),
+    path('preguntas/editar/<int:pregunta_id>/', views.pregunta_edit, name='pregunta_edit'),
+    path('preguntas/preview/<int:pregunta_id>/', views.generic_preview, {'tipo': 'pregunta'}, name='pregunta_preview'),
+    path('soluciones/preview/<int:pregunta_id>/', views.generic_preview, {'tipo': 'solucion'}, name='solucion_preview'),
+    path('preguntas/solucion/editar/<int:pregunta_id>/', views.solucion_edit, name='solucion_edit'),
+
+
+    #generador de prácticas
+    path('crear/', views.crear_practica, name='crear_practica'),
+    path('examen/<uuid:practica_uuid>/', views.resolver_practica, name='resolver_practica'),
+    path('examen/<uuid:practica_uuid>/resultado/', views.resultado_practica, name='resultado_practica'),
 ]
