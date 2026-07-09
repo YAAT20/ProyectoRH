@@ -136,8 +136,8 @@ def generar_examen(request):
         fecha_ultimo_uso=Subquery(fecha_ultimo_uso_subquery)
     ).order_by('-fecha_creacion')  # Ordenar por fecha de creación descendente
 
-    # Paginación - 30 preguntas por página
-    paginator = Paginator(preguntas, 20)
+    # Paginación - 60 preguntas por página
+    paginator = Paginator(preguntas, 60)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 

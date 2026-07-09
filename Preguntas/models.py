@@ -31,7 +31,7 @@ class Universidad(models.Model):
     
 class UserProfile(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE)
-    is_active = models.BooleanField(default=True)  # Campo para activar/desactivar
+    is_active = models.BooleanField(default=True)
     ROLE_CHOICES = [
         ('supervisor', 'Supervisor'),
         ('admin', 'Admin'),
@@ -73,7 +73,7 @@ class Pregunta(models.Model):
     solucion_archivo = models.FileField(upload_to='soluciones/', null=True, blank=True)
     tiene_solucion = models.BooleanField(default=False)
 
-    usuario = models.ForeignKey('UserProfile', on_delete=models.CASCADE, null=True)
+    usuario = models.ForeignKey('UserProfile', on_delete=models.SET_NULL, null=True, blank=True)
     fecha_creacion = models.DateTimeField(default=timezone.now)
 
     def save(self, *args, **kwargs):
@@ -132,7 +132,7 @@ class ExamenPregunta(models.Model):
         return f"{self.examen.nombre} - {self.pregunta.nombre}"
 
 class Practica(models.Model):
-    usuario = models.ForeignKey(UserProfile, on_delete=models.CASCADE)
+    usuario = models.ForeignKey(UserProfile, on_delete=models.SET_NULL, null=True, blank=True)
     curso = models.ForeignKey(Curso, on_delete=models.CASCADE)
     temas = models.ManyToManyField(Tema)
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)

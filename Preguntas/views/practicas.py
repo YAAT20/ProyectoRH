@@ -117,9 +117,9 @@ def generar_docx(practica, relaciones_preguntas):
 
     _configurar_columnas_margenes(base)
 
-    carpeta = "media/practicas"
+    carpeta = os.path.join(settings.MEDIA_ROOT, "practicas")
     os.makedirs(carpeta, exist_ok=True)
-    path = f"{carpeta}/practica_{practica.uuid}.docx"
+    path = os.path.join(carpeta, f"practica_{practica.uuid}.docx")
     composer.save(path)
     return path
 
@@ -163,7 +163,9 @@ def generar_docx_solucionario(practica):
             continue
 
     _configurar_columnas_margenes(base)
-    path = f"media/practicas/solucionario_{practica.uuid}.docx"
+    carpeta = os.path.join(settings.MEDIA_ROOT, "practicas")
+    os.makedirs(carpeta, exist_ok=True)
+    path = os.path.join(carpeta, f"solucionario_{practica.uuid}.docx")
     composer.save(path)
     return path
 
@@ -183,8 +185,8 @@ def crear_practica(request):
         practicas_anteriores = Practica.objects.filter(usuario=usuario_actual)
         for p_vieja in practicas_anteriores:
             rutas_a_borrar = [
-                f"media/practicas/solucionario_{p_vieja.uuid}.docx",
-                f"media/practicas/practica_{p_vieja.uuid}.docx" 
+                os.path.join(settings.MEDIA_ROOT, "practicas", f"solucionario_{p_vieja.uuid}.docx"),
+                os.path.join(settings.MEDIA_ROOT, "practicas", f"practica_{p_vieja.uuid}.docx")
             ]
             for ruta in rutas_a_borrar:
                 if os.path.exists(ruta):
@@ -236,10 +238,11 @@ def crear_practica(request):
 
 def generar_token_practica(practica, modo='view', es_solucionario=False):
     prefijo = "solucionario" if es_solucionario else "practica"
-    ip_interna = "http://192.168.18.20:8003"
-    
-    file_url = f"{ip_interna}/banco/media/practicas/{prefijo}_{practica.uuid}.docx"
-    path = f"media/practicas/{prefijo}_{practica.uuid}.docx"
+    base_url = settings.SITE_DOMAIN.rstrip("/")
+    media_url = settings.MEDIA_URL.rstrip("/")
+
+    file_url = f"{base_url}{media_url}/practicas/{prefijo}_{practica.uuid}.docx"
+    path = os.path.join(settings.MEDIA_ROOT, "practicas", f"{prefijo}_{practica.uuid}.docx")
 
     try:
         version_key = int(os.path.getmtime(path))
@@ -276,7 +279,6 @@ def generar_token_practica(practica, modo='view', es_solucionario=False):
                 "comments": False,
                 "search": False,
                 "compactHeader": True,
-                "toolbarNoTabs": True,
                 "hideRightMenu": True,
                 "autosave": False,
                 "toolbar": not es_solucionario,
@@ -304,7 +306,7 @@ def resolver_practica(request, practica_uuid):
             usuario=request.user.userprofile
         )
 
-        ruta_docx = f"media/practicas/practica_{practica.uuid}.docx"
+        ruta_docx = os.path.join(settings.MEDIA_ROOT, "practicas", f"practica_{practica.uuid}.docx")
 
         def limpiar_docx_temporal():
             if os.path.exists(ruta_docx):
@@ -361,7 +363,8 @@ def resolver_practica(request, practica_uuid):
     return render(request, "Preguntas/practicas/examen.html", {
         "practica": practica,
         "preguntas": preguntas_ordenadas,
-        "config": config
+        "config": config,
+        "ONLYOFFICE_API_URL": settings.ONLYOFFICE_API_URL,
     })
 
 @login_required
@@ -422,5 +425,6 @@ def resultado_practica(request, practica_uuid):
         "pct_errores": pct_errores,
         "pct_blancos": pct_blancos,
         "detalles": detalles,
-        "config_solucionario": config_solucionario
+        "config_solucionario": config_solucionario,
+        "ONLYOFFICE_API_URL": settings.ONLYOFFICE_API_URL,
     })

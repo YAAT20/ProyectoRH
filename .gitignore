@@ -12,3 +12,5 @@ Dockerfile
 banco_backup.sql
 pdf.conversion.log
 query
+auditor_claves.py
+scrip_actualiza_claves.py

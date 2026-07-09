@@ -119,9 +119,9 @@
             console.warn("Error guardando pregunta:", e);
         }
 
-        // 3. ESPERA TÉCNICA (600ms)
-        // Esto es lo que evita que las peticiones choquen y se pierda una
-        await new Promise(resolve => setTimeout(resolve, 600));
+        // 3. ESPERA TÉCNICA (1500ms)
+        //  pa evitar que las peticiones choquen y se pierda
+        await new Promise(resolve => setTimeout(resolve, 1500));
 
         // 4. Guardar SOLUCIÓN (Solo si existe)
         try {

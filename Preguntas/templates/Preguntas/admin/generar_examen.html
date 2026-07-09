@@ -33,7 +33,7 @@
                                 <label for="id_universidad" class="form-label fw-bold mb-1">
                                     <i class="fas fa-university me-1 text-primary"></i>Universidad
                                 </label>
-                                <select name="universidad" id="id_universidad" class="form-select form-select-lx">
+                                <select name="universidad" id="id_universidad" class="form-select form-select-sm">
                                     <option value="">Todas</option>
                                     {% for uni in form.fields.universidad.queryset %}
                                     <option value="{{ uni.id }}" {% if form.data.universidad|stringformat:"s" == uni.id|stringformat:"s" %}selected{% endif %}>
@@ -48,7 +48,7 @@
                                 <label for="id_curso" class="form-label fw-bold mb-1">
                                     <i class="fas fa-book me-1 text-primary"></i>Curso
                                 </label>
-                                <select name="curso" id="id_curso" class="form-select form-select-lx" {% if form.fields.curso.queryset.count == 0 %}disabled{% endif %}>
+                                <select name="curso" id="id_curso" class="form-select form-select-sm" {% if form.fields.curso.queryset.count == 0 %}disabled{% endif %}>
                                     <option value="">Todos</option>
                                     {% for curso in form.fields.curso.queryset %}
                                     <option value="{{ curso.id }}" {% if form.data.curso|stringformat:"s" == curso.id|stringformat:"s" %}selected{% endif %}>
@@ -63,7 +63,7 @@
                                 <label for="id_tema" class="form-label fw-bold mb-1">
                                     <i class="fas fa-question-circle me-1 text-primary"></i>Tema
                                 </label>
-                                <select name="tema" id="id_tema" class="form-select form-select-lx" {% if form.fields.tema.queryset.count == 0 %}disabled{% endif %}>
+                                <select name="tema" id="id_tema" class="form-select form-select-sm" {% if form.fields.tema.queryset.count == 0 %}disabled{% endif %}>
                                     <option value="">Todos</option>
                                     {% for tema in form.fields.tema.queryset %}
                                     <option value="{{ tema.id }}" {% if form.data.tema|stringformat:"s" == tema.id|stringformat:"s" %}selected{% endif %}>

@@ -2,7 +2,7 @@
 {% block title %}Examen{% endblock %}
 
 {% block content %}
-<script src="https://office.academiaroberthooke.com/web-apps/apps/api/documents/api.js" type="text/javascript"></script>
+<script src="{{ ONLYOFFICE_API_URL }}" type="text/javascript"></script>
 
 <style>
 /* Diseño Responsivo (Mobile-First) */
@@ -167,7 +167,6 @@ function selectOption(btn, id, value) {
             if (!config.editorConfig) config.editorConfig = {};
             if (!config.editorConfig.customization) config.editorConfig.customization = {};
             config.editorConfig.customization.compactHeader = true;
-            config.editorConfig.customization.toolbarNoTabs = true;
 
             if (typeof DocsAPI !== 'undefined') {
                 new DocsAPI.DocEditor("editor", config);

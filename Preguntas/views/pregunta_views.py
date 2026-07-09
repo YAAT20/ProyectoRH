@@ -2,6 +2,7 @@
 from ..models import Universidad, Tema, Curso, Pregunta, UserProfile
 from ..forms import Pregunta, PreguntaForm
 import uuid
+import re
 
 # Django - shortcuts y decoradores
 from django.shortcuts import render, redirect, get_object_or_404
@@ -721,14 +722,14 @@ def crear_docx_minimo(ancho_cm=7):
 def generar_token_office(request, pregunta, modo='edit', es_solucion=False):
     dominio_publico = settings.SITE_DOMAIN
 
-    ip_interna = "http://192.168.18.20:8003"
+    ip_interna = "http://172.25.82.120:8003"
     
     archivo = pregunta.solucion_archivo if es_solucion else pregunta.contenido
     if not archivo:
         logger.error(f"Error: Intento de editar archivo inexistente para pregunta {pregunta.id}")
         return None, None
 
-    file_url = f"{ip_interna}{archivo.url}"
+    file_url = f"{dominio_publico}{archivo.url}"
     tipo_str = 'sol' if es_solucion else 'pre'
     
     try:
@@ -738,10 +739,10 @@ def generar_token_office(request, pregunta, modo='edit', es_solucion=False):
         version_key = pregunta.id
 
     # La KEY DEBE ser distinta para PRE y SOL
-    document_key = f"{tipo_str.upper()}_{pregunta.id}_{uuid.uuid4().hex}"
+    document_key = f"{tipo_str.upper()}_{pregunta.id}_{version_key}"    
     
     # Callback dinámico
-    callback_url = f"{ip_interna}/onlyoffice/callback/?id={pregunta.id}&tipo={tipo_str}"
+    callback_url = f"{dominio_publico}/onlyoffice/callback/?id={pregunta.id}&tipo={tipo_str}"
     
     logger.info(f"--- GENERANDO TOKEN ONLYOFFICE ---")
     logger.info(f"Modo: {modo} | Tipo: {tipo_str}")
@@ -836,7 +837,6 @@ def flujo_carga_continua(request):
 
 @csrf_exempt
 def onlyoffice_callback(request):
-    """Guarda el archivo y detecta la clave resaltada."""
     if request.method != "POST":
         return JsonResponse({"error": 1, "message": "Método no permitido"})
 
@@ -846,44 +846,56 @@ def onlyoffice_callback(request):
         pregunta_id = request.GET.get("id")
         tipo = request.GET.get("tipo", "pre")
 
-        # 2 = Documento listo para guardar, 6 = Guardado forzado
+        # Status 2 y 6 son para guardar
         if status in [2, 6]:
             download_url = data.get("url")
-            pregunta = Pregunta.objects.get(id=pregunta_id)
-            
             response = requests.get(download_url, verify=False, timeout=10)
 
             if response.status_code == 200:
                 content_data = response.content
+                # Usamos .filter().first() para evitar excepciones de 'DoesNotExist'
+                pregunta = Pregunta.objects.filter(id=pregunta_id).first()
+                
+                if not pregunta:
+                    return JsonResponse({"error": 1, "message": "Pregunta no encontrada"})
+
+                # --- SECUENCIA CRÍTICA ---
                 
                 if tipo == 'pre':
-                    import re
-                    doc = Document(io.BytesIO(content_data))
-                    encontrado = False
+                    # 1. GUARDAR EL ARCHIVO PRIMERO (Prioridad absoluta)
+                    pregunta.contenido.save(f"{pregunta.nombre}.docx", ContentFile(content_data), save=True)
                     
-                    for p in doc.paragraphs:
-                        if encontrado: break 
-                        
-                        for run in p.runs:
-                            if run.font.highlight_color not in [None, WD_COLOR_INDEX.AUTO]:
-                                texto_resaltado = run.text.strip().upper()
-                                match = re.search(r'([A-E])(?:\s|[\)\.\-]|)', texto_resaltado)
-                                
-                                if match:
-                                    pregunta.respuesta = match.group(1)
-                                    encontrado = True
-                                    break
-                    
-                    pregunta.contenido.save(f"{pregunta.nombre}.docx", ContentFile(content_data), save=False)
-                else:
-                    pregunta.solucion_archivo.save(f"sol_{pregunta.nombre}.docx", ContentFile(content_data), save=False)
+                    # 2. PROCESO DE RESALTADO (En un bloque try independiente)
+                    try:
+                        import io
+                        from docx import Document
+                        doc = Document(io.BytesIO(content_data))
+                        encontrado = False
+                        for p in doc.paragraphs:
+                            if encontrado: break
+                            for run in p.runs:
+                                if run.font.highlight_color not in [None, 0]: # 0 es WD_COLOR_INDEX.AUTO
+                                    texto = run.text.strip().upper()
+                                    match = re.search(r'([A-E])', texto)
+                                    if match:
+                                        pregunta.respuesta = match.group(1)
+                                        encontrado = True
+                                        break
+                        if encontrado:
+                            pregunta.save(update_fields=['respuesta'])
+                    except Exception as e_docx:
+                        print(f"Error procesando texto: {e_docx}")
                 
-                pregunta.save()
+                else: # Es solución
+                    pregunta.solucion_archivo.save(f"sol_{pregunta.nombre}.docx", ContentFile(content_data), save=True)
+
+                return JsonResponse({"error": 0})
 
         return JsonResponse({"error": 0})
+        
     except Exception as e:
-        print(f"ERROR CALLBACK: {str(e)}")
-        return JsonResponse({"error": 1, "message": str(e)})
+        print(f"CRITICAL ERROR: {str(e)}")
+        return JsonResponse({"error": 1})
 
 @login_required
 @role_required('admin', 'user')
